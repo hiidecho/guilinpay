@@ -1,0 +1,1265 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="원화와 위안을 분리해 관리하는 구이린 파견 교수진 공동경비 장부">
+<title>구이린 공동경비 장부</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* ============================================================
+   구이린 공동경비 장부 — 먹빛 · 청자 팔레트
+   ============================================================ */
+:root{
+  --paper:#f2f5f3;
+  --surface:#ffffff;
+  --surface-2:#e9efeb;
+  --surface-3:#f7faf8;
+  --line:#dce4df;
+  --line-2:#c3d0c9;
+  --ink:#111917;
+  --ink-2:#394744;
+  --muted:#69786f;
+  --jade:#1f6f5c;
+  --jade-2:#175748;
+  --jade-soft:#e2efe9;
+  --jade-line:#b9d8cb;
+  --won:#27577d;
+  --won-soft:#e4eef6;
+  --won-line:#bcd5e8;
+  --yuan:#8a6320;
+  --yuan-soft:#f6efdd;
+  --yuan-line:#e3d1a6;
+  --alert:#ab2820;
+  --alert-soft:#fae9e7;
+  --alert-line:#efc7c2;
+  --shadow-1:0 1px 2px rgba(17,25,23,.05);
+  --shadow-2:0 1px 2px rgba(17,25,23,.05), 0 10px 26px -14px rgba(17,25,23,.28);
+  --shadow-3:0 30px 70px -20px rgba(17,25,23,.42);
+  --r-lg:16px; --r-md:11px; --r-sm:8px;
+  --f-display:"Hahmlet","Nanum Myeongjo",Georgia,"Apple SD Gothic Neo",serif;
+  --f-body:"IBM Plex Sans KR",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI",Roboto,sans-serif;
+  --f-mono:"IBM Plex Mono","IBM Plex Sans KR",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0e1412; --surface:#161e1b; --surface-2:#1d2724; --surface-3:#131b19;
+    --line:#28332f; --line-2:#3a4844;
+    --ink:#e6eeea; --ink-2:#bdcac5; --muted:#879992;
+    --jade:#5cba9e; --jade-2:#7fd0b6; --jade-soft:#14302a; --jade-line:#2c5a4d;
+    --won:#87b5dd; --won-soft:#132635; --won-line:#28455f;
+    --yuan:#d7ae5d; --yuan-soft:#2c2413; --yuan-line:#54441f;
+    --alert:#f0938a; --alert-soft:#361714; --alert-line:#5c2a25;
+    --shadow-1:0 1px 2px rgba(0,0,0,.5);
+    --shadow-2:0 1px 2px rgba(0,0,0,.5), 0 12px 30px -16px rgba(0,0,0,.85);
+    --shadow-3:0 34px 80px -22px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0e1412; --surface:#161e1b; --surface-2:#1d2724; --surface-3:#131b19;
+  --line:#28332f; --line-2:#3a4844;
+  --ink:#e6eeea; --ink-2:#bdcac5; --muted:#879992;
+  --jade:#5cba9e; --jade-2:#7fd0b6; --jade-soft:#14302a; --jade-line:#2c5a4d;
+  --won:#87b5dd; --won-soft:#132635; --won-line:#28455f;
+  --yuan:#d7ae5d; --yuan-soft:#2c2413; --yuan-line:#54441f;
+  --alert:#f0938a; --alert-soft:#361714; --alert-line:#5c2a25;
+  --shadow-1:0 1px 2px rgba(0,0,0,.5);
+  --shadow-2:0 1px 2px rgba(0,0,0,.5), 0 12px 30px -16px rgba(0,0,0,.85);
+  --shadow-3:0 34px 80px -22px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--f-body); font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--jade);outline-offset:2px;border-radius:4px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+/* ₩ 와 元 은 IBM Plex Mono 에 없어 대체 글리프가 모노 셀을 넘친다 — 본문 서체로 따로 조판한다 */
+.sym{font-family:var(--f-body);letter-spacing:0;margin-right:.09em}
+.sym.post{margin-right:0;margin-left:.11em}
+
+.page{max-width:1120px;margin:0 auto;padding:34px 22px 70px}
+
+/* ---------- masthead ---------- */
+.masthead{
+  display:grid;grid-template-columns:1fr auto;gap:22px;align-items:end;
+  padding-bottom:20px;margin-bottom:26px;
+  border-bottom:1px solid var(--line-2);
+}
+.eyebrow{
+  display:flex;align-items:center;gap:9px;
+  font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:9px;
+}
+.eyebrow .rule{width:26px;height:1px;background:var(--line-2)}
+.masthead h1{
+  font-family:var(--f-display);font-weight:700;font-size:clamp(27px,4vw,38px);
+  line-height:1.15;margin:0;letter-spacing:-.015em;text-wrap:balance;
+}
+.masthead .dek{color:var(--muted);font-size:13.5px;margin-top:8px;max-width:52ch}
+.mast-side{display:flex;flex-direction:column;align-items:flex-end;gap:11px}
+.toolbar{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+
+/* ---------- sync pill ---------- */
+.sync{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:11.5px;font-weight:600;letter-spacing:.02em;
+  padding:5px 11px 5px 9px;border-radius:999px;
+  border:1px solid var(--line);background:var(--surface);color:var(--muted);
+  white-space:nowrap;
+}
+.sync .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none}
+.sync[data-state="shared"]{border-color:var(--jade-line);background:var(--jade-soft);color:var(--jade-2)}
+.sync[data-state="shared"] .dot{background:var(--jade)}
+.sync[data-state="local"]{border-color:var(--yuan-line);background:var(--yuan-soft);color:var(--yuan)}
+.sync[data-state="local"] .dot{background:var(--yuan)}
+.sync[data-state="readonly"]{border-color:var(--line-2)}
+.sync[data-state="saving"] .dot{background:var(--jade);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+
+/* ---------- buttons ---------- */
+.btn{
+  border:1px solid var(--line-2);background:var(--surface);color:var(--ink);
+  border-radius:var(--r-md);padding:8px 13px;font-size:13.5px;font-weight:600;
+  transition:background .15s,border-color .15s,transform .12s;
+  white-space:nowrap;
+}
+.btn:hover{background:var(--surface-3);border-color:var(--muted)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--jade);border-color:var(--jade);color:#fff}
+.btn.primary:hover{background:var(--jade-2);border-color:var(--jade-2)}
+.btn.quiet{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.quiet:hover{background:var(--surface-2);color:var(--ink)}
+.btn.warn{color:var(--alert);border-color:var(--alert-line);background:var(--alert-soft)}
+.btn.warn:hover{background:var(--alert-soft);border-color:var(--alert)}
+.btn.sm{padding:5px 10px;font-size:12.5px;border-radius:var(--r-sm)}
+
+/* ---------- section headers ---------- */
+.sec{margin-top:36px}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:13px}
+.sec-head h2{
+  font-family:var(--f-display);font-weight:600;font-size:19px;margin:0;letter-spacing:-.01em;
+}
+.sec-head .hint{color:var(--muted);font-size:12.5px}
+
+/* ---------- currency chips ---------- */
+.chip{
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:var(--f-mono);font-size:10.5px;font-weight:600;letter-spacing:.08em;
+  padding:3px 7px;border-radius:5px;border:1px solid transparent;white-space:nowrap;
+}
+.chip.krw{background:var(--won-soft);border-color:var(--won-line);color:var(--won)}
+.chip.cny{background:var(--yuan-soft);border-color:var(--yuan-line);color:var(--yuan)}
+
+/* ---------- totals: two currency purses ---------- */
+.totals{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.purse{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:20px 21px 18px;box-shadow:var(--shadow-2);position:relative;overflow:hidden;
+}
+.purse::before{content:"";position:absolute;inset:0 auto 0 0;width:3px}
+.purse.krw::before{background:var(--won)}
+.purse.cny::before{background:var(--yuan)}
+.purse-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.purse-name{font-size:13px;font-weight:600;color:var(--ink-2)}
+.purse-fig{font-family:var(--f-mono);font-variant-numeric:tabular-nums;
+  font-size:clamp(28px,4.4vw,38px);font-weight:600;line-height:1.05;letter-spacing:-.03em}
+.purse.krw .purse-fig{color:var(--won)}
+.purse.cny .purse-fig{color:var(--yuan)}
+.purse-lab{font-size:11.5px;color:var(--muted);margin-top:5px;letter-spacing:.02em}
+.purse-split{display:flex;gap:20px;margin-top:16px;padding-top:13px;border-top:1px dashed var(--line-2)}
+.purse-split div{display:flex;flex-direction:column;gap:2px}
+.purse-split .k{font-size:11px;color:var(--muted);letter-spacing:.04em}
+.purse-split b{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:14px;font-weight:500}
+
+/* ---------- meter ---------- */
+.meter{height:5px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-top:13px}
+.meter i{display:block;height:100%;border-radius:99px;background:var(--muted);transition:width .4s ease}
+.meter.krw i{background:var(--won)}
+.meter.cny i{background:var(--yuan)}
+.meter.low i{background:var(--alert)}
+
+/* ---------- member ledger rows ---------- */
+.ledger{display:flex;flex-direction:column;gap:8px}
+.lrow{
+  display:grid;grid-template-columns:minmax(132px,.9fr) 1.5fr 1.5fr 16px;
+  gap:20px;align-items:center;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:15px 18px;box-shadow:var(--shadow-1);
+  text-align:left;width:100%;font:inherit;color:inherit;
+  transition:border-color .15s,box-shadow .15s,transform .12s;
+}
+.lrow:hover{border-color:var(--jade-line);box-shadow:var(--shadow-2);transform:translateY(-1px)}
+.who{display:flex;align-items:center;gap:11px;min-width:0}
+.avatar{
+  width:34px;height:34px;flex:none;border-radius:50%;
+  display:grid;place-items:center;
+  font-family:var(--f-display);font-weight:600;font-size:16px;
+  background:var(--jade-soft);color:var(--jade-2);border:1px solid var(--jade-line);
+}
+.who-name{font-weight:600;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.who-sub{font-size:11px;color:var(--muted)}
+.pocket{min-width:0}
+.pocket-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.pocket-val{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:17px;font-weight:600;letter-spacing:-.02em}
+.pocket.krw .pocket-val{color:var(--won)}
+.pocket.cny .pocket-val{color:var(--yuan)}
+.pocket.neg .pocket-val{color:var(--alert)}
+.pocket-foot{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:11px;color:var(--muted)}
+.pocket-foot .mono{font-size:11px}
+.chev{color:var(--line-2);font-size:19px;text-align:right;line-height:1}
+.lrow:hover .chev{color:var(--jade)}
+
+/* ---------- tables ---------- */
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+  box-shadow:var(--shadow-1);overflow:hidden}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:560px}
+th,td{padding:11px 16px;text-align:left;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:middle}
+th{
+  background:var(--surface-3);color:var(--muted);
+  font-size:10.5px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--surface-3)}
+td.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-weight:500;white-space:nowrap}
+td.date{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);white-space:nowrap}
+.out{color:var(--alert)}
+.in{color:var(--jade)}
+.empty{padding:30px 16px;text-align:center;color:var(--muted);font-size:13.5px}
+.pill-people{
+  border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);
+  border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;white-space:nowrap;
+}
+.pill-people:hover{border-color:var(--jade);color:var(--jade)}
+.memo{color:var(--muted);font-size:11.5px;display:block;margin-top:1px}
+
+/* ---------- admin ---------- */
+.admin{display:none;margin-top:40px;padding-top:30px;border-top:2px solid var(--line-2)}
+.admin.open{display:block}
+.admin-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.admin-bar h2{font-family:var(--f-display);font-size:19px;margin:0;font-weight:600}
+.tag{
+  display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.05em;
+  padding:4px 10px;border-radius:999px;background:var(--alert-soft);color:var(--alert);border:1px solid var(--alert-line);
+}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px;
+  background:var(--surface-2);padding:4px;border-radius:var(--r-md);width:fit-content;max-width:100%}
+.tab{
+  padding:7px 13px;border-radius:var(--r-sm);border:1px solid transparent;background:transparent;
+  font-size:13px;font-weight:600;color:var(--muted);transition:background .15s,color .15s;
+}
+.tab:hover{color:var(--ink)}
+.tab.active{background:var(--surface);color:var(--ink);border-color:var(--line);box-shadow:var(--shadow-1)}
+.pane{display:none}
+.pane.active{display:block}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:20px;box-shadow:var(--shadow-1)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.panel-head h3{font-family:var(--f-display);font-size:16px;margin:0;font-weight:600}
+
+.form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.f{display:flex;flex-direction:column;gap:6px}
+.f.wide{grid-column:1/-1}
+.f>label{font-size:11.5px;font-weight:600;color:var(--ink-2);letter-spacing:.03em}
+input,select{
+  border:1px solid var(--line-2);border-radius:var(--r-md);padding:9px 11px;
+  background:var(--surface);color:var(--ink);outline:none;width:100%;
+  transition:border-color .15s,box-shadow .15s;
+}
+input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+input:focus,select:focus{border-color:var(--jade);box-shadow:0 0 0 3px var(--jade-soft)}
+.row-inline{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:2px}
+.row-inline label{font-size:11.5px;font-weight:600;color:var(--ink-2);letter-spacing:.03em;margin-right:3px}
+
+.people-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px}
+.pcheck{
+  display:flex;align-items:center;gap:8px;padding:9px 11px;
+  border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface);
+  font-size:13.5px;cursor:pointer;transition:border-color .15s,background .15s;
+}
+.pcheck:hover{border-color:var(--line-2)}
+.pcheck:has(input:checked){border-color:var(--jade);background:var(--jade-soft);color:var(--jade-2);font-weight:600}
+.pcheck input{width:auto;accent-color:var(--jade)}
+.custom-grid{display:grid;grid-template-columns:1fr 130px;gap:7px;align-items:center}
+.custom-name{padding:9px 11px;border:1px solid var(--line);border-radius:var(--r-md);
+  background:var(--surface-3);font-size:13.5px;font-weight:500}
+
+.preview{background:var(--surface-3);border:1px dashed var(--line-2);border-radius:var(--r-md);padding:14px 16px}
+.preview h4{margin:0 0 9px;font-size:11.5px;font-weight:600;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--muted)}
+.prow{display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:13.5px;
+  border-bottom:1px dashed var(--line)}
+.prow:last-child{border-bottom:none}
+.prow.total{margin-top:4px;padding-top:9px;border-top:1px solid var(--line-2);border-bottom:none;font-weight:600}
+.prow b{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+.note{
+  background:var(--jade-soft);border:1px solid var(--jade-line);border-radius:var(--r-md);
+  padding:11px 14px;color:var(--jade-2);font-size:12.5px;line-height:1.6;margin-bottom:16px;
+}
+.note.warn{background:var(--yuan-soft);border-color:var(--yuan-line);color:var(--yuan)}
+.note b{font-weight:600}
+
+/* ---------- dialogs ---------- */
+dialog{
+  border:1px solid var(--line);border-radius:var(--r-lg);padding:0;
+  background:var(--surface);color:var(--ink);
+  box-shadow:var(--shadow-3);width:min(660px,calc(100vw - 26px));max-height:86vh;
+}
+dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
+.modal{padding:22px}
+.modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:16px}
+.modal-head h3{font-family:var(--f-display);font-size:19px;margin:0;font-weight:600;letter-spacing:-.01em}
+.modal-head .sub{font-size:12px;color:var(--muted);margin-top:3px}
+.x{border:none;background:transparent;font-size:21px;line-height:1;color:var(--muted);padding:2px 6px;border-radius:6px}
+.x:hover{background:var(--surface-2);color:var(--ink)}
+.modal-scroll{overflow:auto;max-height:60vh}
+.plist{display:flex;flex-direction:column;gap:6px}
+.pitem{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:10px 14px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-3)}
+.pitem .n{font-weight:600;font-size:13.5px}
+.pitem .a{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-weight:600;font-size:13.5px}
+.mini-purses{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:16px}
+.mini{border:1px solid var(--line);border-radius:var(--r-md);padding:13px 15px;background:var(--surface-3)}
+.mini .k{font-size:11px;color:var(--muted);letter-spacing:.04em}
+.mini .v{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:21px;font-weight:600;
+  margin-top:3px;letter-spacing:-.02em}
+.mini.krw .v{color:var(--won)} .mini.cny .v{color:var(--yuan)}
+
+/* ---------- toast ---------- */
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);
+  background:var(--ink);color:var(--paper);border-radius:var(--r-md);
+  padding:11px 18px;font-size:13.5px;font-weight:500;box-shadow:var(--shadow-3);
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:99;max-width:calc(100vw - 32px);
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.bad{background:var(--alert);color:#fff}
+
+.colophon{
+  margin-top:44px;padding-top:18px;border-top:1px solid var(--line);
+  display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  color:var(--muted);font-size:11.5px;
+}
+.hide{display:none !important}
+
+@media(max-width:860px){
+  .totals{grid-template-columns:1fr}
+  .lrow{grid-template-columns:1fr 1fr;gap:14px 18px}
+  .who{grid-column:1/-1}
+  .chev{display:none}
+  .form{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+  .page{padding:24px 15px 56px}
+  .masthead{grid-template-columns:1fr;align-items:start}
+  .mast-side{align-items:flex-start}
+  .toolbar{justify-content:flex-start}
+  .lrow{grid-template-columns:1fr}
+  .mini-purses{grid-template-columns:1fr}
+  .custom-grid{grid-template-columns:1fr 110px}
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+<main class="page">
+
+  <header class="masthead">
+    <div>
+      <div class="eyebrow"><span class="rule"></span><span>광시사범대학 · 구이린 파견</span></div>
+      <h1>구이린 공동경비 장부</h1>
+      <p class="dek">원화(KRW)와 위안(CNY)을 서로 섞지 않고 각각의 지갑으로 관리합니다. 이름을 누르면 개인별 상세 내역이 열립니다.</p>
+    </div>
+    <div class="mast-side">
+      <span class="sync" id="syncPill" data-state="local"><span class="dot"></span><span id="syncText">불러오는 중</span></span>
+      <div class="toolbar">
+        <button class="btn" id="exportBtn">CSV 내려받기</button>
+        <button class="btn primary" id="adminBtn">관리자</button>
+        <button class="btn warn hide" id="logoutBtn">관리자 종료</button>
+      </div>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <h2>지갑 합계</h2>
+      <span class="hint" id="updatedHint"></span>
+    </div>
+    <div class="totals" id="totals"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head">
+      <h2>구성원별 잔액</h2>
+      <span class="hint">막대는 투입액 대비 남은 비율</span>
+    </div>
+    <div class="ledger" id="ledger"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head">
+      <h2>최근 사용내역</h2>
+      <button class="btn sm" id="showAllBtn">전체 내역 보기</button>
+    </div>
+    <div class="sheet"><div class="scroll">
+      <table>
+        <thead><tr><th>날짜</th><th>내용</th><th>통화</th><th style="text-align:right">금액</th><th>인원</th></tr></thead>
+        <tbody id="recentBody"></tbody>
+      </table>
+    </div></div>
+  </section>
+
+  <section class="admin" id="adminZone">
+    <div class="admin-bar">
+      <h2>관리자 콘솔</h2>
+      <span class="tag">입력 · 수정 권한</span>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="paneExpense">사용금액 등록</button>
+      <button class="tab" data-tab="paneAdd">금액 추가</button>
+      <button class="tab" data-tab="paneManage">내역 관리</button>
+      <button class="tab" data-tab="paneMember">구성원</button>
+      <button class="tab" data-tab="panePin">PIN 설정</button>
+    </div>
+
+    <div class="pane active" id="paneExpense">
+      <div class="panel">
+        <div class="panel-head">
+          <h3 id="expFormTitle">사용금액 등록</h3>
+          <button class="btn sm hide" id="cancelEditBtn">수정 취소</button>
+        </div>
+        <div class="form">
+          <div class="f"><label for="expDate">날짜</label><input type="date" id="expDate"></div>
+          <div class="f"><label for="expTitle">사용내용</label><input id="expTitle" placeholder="예: 9일 점심, 커피, 택시"></div>
+          <div class="f"><label for="expCurrency">통화</label>
+            <select id="expCurrency"><option value="KRW">원화 KRW</option><option value="CNY">위안 CNY</option></select>
+          </div>
+          <div class="f"><label for="expMode">입력 방식</label>
+            <select id="expMode">
+              <option value="SAME">동일금액 — 선택한 사람마다 같은 금액</option>
+              <option value="SPLIT">총액 나누기 — 총액을 선택 인원으로 분할</option>
+              <option value="CUSTOM">개별금액 — 사람마다 다른 금액</option>
+            </select>
+          </div>
+          <div class="f wide" id="commonAmountField">
+            <label for="expAmount" id="amountLabel">1인당 금액</label>
+            <input type="number" min="0" step="0.01" id="expAmount" placeholder="0">
+          </div>
+          <div class="f wide">
+            <div class="row-inline">
+              <label>사용 인원</label>
+              <button class="btn sm" type="button" id="selectAllExp">전체 선택</button>
+              <button class="btn sm" type="button" id="clearAllExp">전체 해제</button>
+            </div>
+            <div class="people-grid" id="expParticipants"></div>
+          </div>
+          <div class="f wide hide" id="customAmountsField">
+            <label>개별금액</label>
+            <div class="custom-grid" id="customAmounts"></div>
+          </div>
+          <div class="f wide"><label for="expMemo">메모</label><input id="expMemo" placeholder="선택사항"></div>
+          <div class="f wide"><div class="preview" id="expPreview"></div></div>
+          <div class="f wide"><button class="btn primary" id="saveExpenseBtn">지출 등록</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pane" id="paneAdd">
+      <div class="panel">
+        <div class="panel-head"><h3>금액 추가</h3></div>
+        <div class="form">
+          <div class="f"><label for="addDate">날짜</label><input type="date" id="addDate"></div>
+          <div class="f"><label for="addTitle">내용</label><input id="addTitle" placeholder="예: 추가 환전, 추가 회비"></div>
+          <div class="f"><label for="addCurrency">통화</label>
+            <select id="addCurrency"><option value="KRW">원화 KRW</option><option value="CNY">위안 CNY</option></select>
+          </div>
+          <div class="f"><label for="addAmount">1인당 추가금액</label><input type="number" min="0" step="0.01" id="addAmount" placeholder="0"></div>
+          <div class="f wide">
+            <div class="row-inline">
+              <label>추가 대상</label>
+              <button class="btn sm" type="button" id="selectAllAdd">전체 선택</button>
+              <button class="btn sm" type="button" id="clearAllAdd">전체 해제</button>
+            </div>
+            <div class="people-grid" id="addParticipants"></div>
+          </div>
+          <div class="f wide"><label for="addMemo">메모</label><input id="addMemo" placeholder="선택사항"></div>
+          <div class="f wide"><button class="btn primary" id="saveAddBtn">금액 추가</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pane" id="paneManage">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>전체 내역 관리</h3>
+          <button class="btn sm warn" id="resetDataBtn">최초 데이터로 초기화</button>
+        </div>
+        <div class="sheet"><div class="scroll">
+          <table>
+            <thead><tr><th>날짜</th><th>구분</th><th>내용</th><th style="text-align:right">반영금액</th><th>인원</th><th>관리</th></tr></thead>
+            <tbody id="manageBody"></tbody>
+          </table>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="pane" id="paneMember">
+      <div class="panel">
+        <div class="panel-head"><h3>구성원 관리</h3></div>
+        <div class="form">
+          <div class="f"><label for="memberName">이름</label><input id="memberName" placeholder="교수명"></div>
+          <div class="f"><label for="memberKRW">초기 원화</label><input id="memberKRW" type="number" min="0" step="1" value="100000"></div>
+          <div class="f"><label for="memberCNY">초기 위안</label><input id="memberCNY" type="number" min="0" step="0.01" value="465"></div>
+          <div class="f" style="justify-content:flex-end"><button class="btn primary" id="addMemberBtn">구성원 추가</button></div>
+        </div>
+        <div style="height:16px"></div>
+        <div class="sheet"><div class="scroll">
+          <table>
+            <thead><tr><th>이름</th><th>초기 원화</th><th>초기 위안</th><th style="text-align:right">현재 원화</th><th style="text-align:right">현재 위안</th><th>관리</th></tr></thead>
+            <tbody id="memberBody"></tbody>
+          </table>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="pane" id="panePin">
+      <div class="panel">
+        <div class="panel-head"><h3>관리자 PIN 설정</h3></div>
+        <div class="note warn">
+          <b>PIN은 편의 장치입니다.</b> 이 페이지는 정적 HTML이라 PIN만으로는 열람을 막을 수 없습니다.
+          실제 수정 권한은 이 페이지를 공유한 방식(보기 전용 / 편집 가능)이 결정합니다.
+        </div>
+        <div class="form">
+          <div class="f wide"><label for="curPin">현재 PIN</label><input id="curPin" type="password" inputmode="numeric" placeholder="현재 PIN"></div>
+          <div class="f"><label for="newPin">새 PIN</label><input id="newPin" type="password" inputmode="numeric" placeholder="4자리 이상"></div>
+          <div class="f"><label for="newPin2">새 PIN 확인</label><input id="newPin2" type="password" inputmode="numeric" placeholder="다시 입력"></div>
+          <div class="f wide"><button class="btn primary" id="changePinBtn">PIN 변경</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="colophon">
+    <span>구이린 공동경비 장부 · 원화와 위안을 분리 관리</span>
+    <span id="colophonMode"></span>
+  </footer>
+</main>
+
+<dialog id="adminDialog">
+  <div class="modal">
+    <div class="modal-head">
+      <div><h3>관리자 로그인</h3><div class="sub">등록·수정 기능을 엽니다</div></div>
+      <button class="x" id="closeAdminDlg" aria-label="닫기">&times;</button>
+    </div>
+    <div class="f"><label for="adminPin">관리자 PIN</label><input id="adminPin" type="password" inputmode="numeric" placeholder="기본 PIN 1234"></div>
+    <div style="height:14px"></div>
+    <button class="btn primary" style="width:100%" id="loginBtn">관리자 모드 열기</button>
+    <p class="note warn" style="margin:14px 0 0">
+      기본 PIN은 <b>1234</b>이며 관리자 콘솔에서 변경할 수 있습니다. 정적 페이지의 PIN은 보안 장치가 아니라 실수 방지용입니다.
+    </p>
+  </div>
+</dialog>
+
+<dialog id="detailDialog">
+  <div class="modal">
+    <div class="modal-head">
+      <div><h3 id="detailTitle">개인 내역</h3><div class="sub" id="detailSub"></div></div>
+      <button class="x" id="closeDetailDlg" aria-label="닫기">&times;</button>
+    </div>
+    <div id="detailBody"></div>
+  </div>
+</dialog>
+
+<dialog id="allDialog">
+  <div class="modal">
+    <div class="modal-head">
+      <div><h3>전체 사용내역</h3><div class="sub" id="allSub"></div></div>
+      <button class="x" id="closeAllDlg" aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-scroll"><div class="sheet"><div class="scroll">
+      <table>
+        <thead><tr><th>날짜</th><th>내용</th><th>통화</th><th style="text-align:right">금액</th><th>인원</th></tr></thead>
+        <tbody id="allBody"></tbody>
+      </table>
+    </div></div></div>
+  </div>
+</dialog>
+
+<dialog id="peopleDialog">
+  <div class="modal">
+    <div class="modal-head">
+      <div><h3 id="peopleTitle">사용 인원</h3><div class="sub" id="peopleSub"></div></div>
+      <button class="x" id="closePeopleDlg" aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-scroll"><div class="plist" id="peopleList"></div></div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script type="application/json" id="appState">
+{
+ "members": [
+  {"id":"P01","name":"안창은","initialKRW":100000,"initialCNY":930,"active":true},
+  {"id":"P02","name":"조희대","initialKRW":100000,"initialCNY":465,"active":true},
+  {"id":"P03","name":"이민성","initialKRW":100000,"initialCNY":930,"active":true},
+  {"id":"P04","name":"목정훈","initialKRW":100000,"initialCNY":930,"active":true},
+  {"id":"P05","name":"송기정","initialKRW":100000,"initialCNY":465,"active":true}
+ ],
+ "groups": [
+  {"id":"G001","date":"2026-09-07","type":"EXPENSE","title":"롯데리아","currency":"KRW","mode":"CUSTOM","memo":"","entries":{"P01":9500,"P02":9500,"P03":8900,"P04":9500,"P05":9500}},
+  {"id":"G002","date":"2026-09-07","type":"EXPENSE","title":"노포","currency":"KRW","mode":"SAME","memo":"","entries":{"P01":20600,"P03":20600,"P04":20600,"P05":20600}},
+  {"id":"G003","date":"2026-09-07","type":"EXPENSE","title":"피자","currency":"CNY","mode":"SAME","memo":"","entries":{"P01":25,"P03":25,"P04":25,"P05":25}},
+  {"id":"G004","date":"2026-09-07","type":"EXPENSE","title":"커피","currency":"CNY","mode":"SAME","memo":"","entries":{"P01":20,"P03":20,"P04":20}},
+  {"id":"G005","date":"2026-09-07","type":"EXPENSE","title":"맥주·백주 저녁","currency":"CNY","mode":"SAME","memo":"7일 저녁","entries":{"P01":175,"P03":175,"P04":175}},
+  {"id":"G006","date":"2026-09-07","type":"EXPENSE","title":"점심","currency":"CNY","mode":"CUSTOM","memo":"송기정 기록","entries":{"P05":44}},
+  {"id":"G007","date":"2026-09-07","type":"EXPENSE","title":"커피","currency":"CNY","mode":"SAME","memo":"","entries":{"P01":25,"P03":25,"P04":25,"P05":25}},
+  {"id":"G008","date":"2026-09-08","type":"EXPENSE","title":"8일 점심","currency":"CNY","mode":"SAME","memo":"","entries":{"P01":117,"P02":117,"P03":117,"P04":117,"P05":117}},
+  {"id":"G009","date":"2026-09-08","type":"EXPENSE","title":"8일 저녁","currency":"CNY","mode":"SAME","memo":"","entries":{"P03":226,"P04":226}},
+  {"id":"G010","date":"2026-09-09","type":"EXPENSE","title":"9일 점심","currency":"CNY","mode":"CUSTOM","memo":"","entries":{"P01":52,"P03":51,"P04":61,"P05":69}},
+  {"id":"G011","date":"2026-09-09","type":"EXPENSE","title":"커피","currency":"CNY","mode":"CUSTOM","memo":"안창은","entries":{"P01":20}}
+ ],
+ "pinHash": null,
+ "updatedAt": null
+}
+</script>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ── 자기 자신을 다시 발행하기 위해, 렌더링 전의 원본 문서를 붙잡아 둔다 ── */
+  const PRISTINE = document.documentElement.outerHTML;
+
+  const LS_KEY = "guilin_expense_v2";
+  const SS_ADMIN = "guilin_admin";
+  const DEFAULT_PIN = "1234";
+  const HOSTED = typeof window.claude?.use === "function";
+
+  /* 미리보기·썸네일·저장소 차단 환경에서는 접근 자체가 예외를 던진다 */
+  const store = {
+    get(area, k){ try { return window[area].getItem(k); } catch (e) { return null; } },
+    set(area, k, v){ try { window[area].setItem(k, v); } catch (e) {} },
+    del(area, k){ try { window[area].removeItem(k); } catch (e) {} }
+  };
+
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c =>
+    ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
+  const fmt = {
+    KRW: n => "₩" + Math.round(Number(n) || 0).toLocaleString("ko-KR"),
+    CNY: n => (Number(n) || 0).toLocaleString("ko-KR", { maximumFractionDigits: 2 }) + "元"
+  };
+  /* fmt = 평문(CSV·확인창용), money = 표시용 HTML */
+  const money = (cur, n) => cur === "KRW"
+    ? `<span class="sym">₩</span>${Math.round(Number(n) || 0).toLocaleString("ko-KR")}`
+    : `${(Number(n) || 0).toLocaleString("ko-KR", { maximumFractionDigits: 2 })}<span class="sym post">元</span>`;
+
+  const CUR = { KRW: { chip: "krw", label: "원화 KRW", short: "KRW" },
+                CNY: { chip: "cny", label: "위안 CNY", short: "CNY" } };
+
+  function todayISO(){
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  }
+
+  /* ── 상태 ── */
+  function normalize(raw){
+    const o = (raw && typeof raw === "object") ? raw : {};
+    return {
+      members: Array.isArray(o.members) ? o.members : [],
+      groups:  Array.isArray(o.groups)  ? o.groups  : [],
+      pinHash: o.pinHash ?? null,
+      updatedAt: o.updatedAt ?? null
+    };
+  }
+
+  let data = normalize(JSON.parse($("#appState").textContent));
+  if (!HOSTED) {
+    try {
+      const raw = store.get("localStorage", LS_KEY);
+      if (raw) data = normalize(JSON.parse(raw));
+    } catch (e) { /* 저장본이 깨졌으면 최초 데이터로 */ }
+  }
+
+  let isAdmin = store.get("sessionStorage", SS_ADMIN) === "1";
+  let editingId = null;
+  let artifactApi = null;
+  let syncState = HOSTED ? "connecting" : "local";
+  let saving = false, queued = false;
+
+  /* ── 계산 ── */
+  const byId = id => data.members.find(m => m.id === id);
+  const actives = () => data.members.filter(m => m.active);
+  const amountOf = (g, id) => Number(g.entries?.[id] || 0);
+
+  function funded(id, cur){
+    const m = byId(id); if (!m) return 0;
+    let v = Number((cur === "KRW" ? m.initialKRW : m.initialCNY) || 0);
+    data.groups.forEach(g => { if (g.type === "ADD" && g.currency === cur) v += amountOf(g, id); });
+    return v;
+  }
+  function spent(id, cur){
+    return data.groups.reduce((s, g) =>
+      (g.type === "EXPENSE" && g.currency === cur) ? s + amountOf(g, id) : s, 0);
+  }
+  const balance = (id, cur) => funded(id, cur) - spent(id, cur);
+  const sumAll = (fn, cur) => actives().reduce((s, m) => s + fn(m.id, cur), 0);
+  const groupTotal = g => Object.values(g.entries || {}).reduce((a, b) => a + Number(b || 0), 0);
+  const groupPeople = g => Object.keys(g.entries || {}).filter(k => Number(g.entries[k]) !== 0);
+  const sorted = () => [...data.groups].sort((a, b) =>
+    String(b.date).localeCompare(String(a.date)) || String(b.id).localeCompare(String(a.id)));
+  const dateShort = d => String(d || "").slice(5).replace("-", "/");
+  const ratio = (n, d) => d > 0 ? Math.max(0, Math.min(1, n / d)) : 0;
+
+  /* ── 저장: 공유 발행 또는 브라우저 저장 ── */
+  function buildDoc(state){
+    const doc = new DOMParser().parseFromString(PRISTINE, "text/html");
+    doc.getElementById("appState").textContent = "\n" + JSON.stringify(state, null, 1) + "\n";
+    return "<!doctype html>\n" + doc.documentElement.outerHTML;
+  }
+
+  async function persist(){
+    data.updatedAt = new Date().toISOString();
+    renderAll();
+
+    if (!artifactApi) {
+      if (!HOSTED) store.set("localStorage", LS_KEY, JSON.stringify(data));
+      return true;
+    }
+    if (saving) { queued = true; return true; }
+
+    saving = true; setSync("saving");
+    try {
+      await artifactApi.publish(buildDoc(data));
+      return true;
+    } catch (err) {
+      const code = err?.code;
+      if (code === "conflict") return true;              // 다른 편집이 먼저 반영됨 — 전체 화면이 최신본으로 새로고침된다
+      if (code === "not_writer" || code === "not_granted") {
+        setSync("readonly");
+        toast("이 링크는 보기 전용입니다. 편집하려면 편집 권한으로 공유받아야 합니다.", "bad");
+        return false;
+      }
+      if (code === "rate_limited") { toast("저장이 너무 잦습니다. 잠시 후 다시 시도해 주세요.", "bad"); return false; }
+      toast("저장하지 못했습니다: " + (err?.message || "알 수 없는 오류"), "bad");
+      return false;
+    } finally {
+      saving = false;
+      if (syncState === "saving") setSync("shared");
+      if (queued) { queued = false; persist(); }
+    }
+  }
+
+  function setSync(state){
+    syncState = state;
+    const pill = $("#syncPill"), txt = $("#syncText");
+    const map = {
+      connecting: "연결 중",
+      shared:     "공유 저장 · 모두에게 반영",
+      saving:     "저장하는 중",
+      readonly:   "보기 전용",
+      local:      "이 브라우저에만 저장"
+    };
+    pill.dataset.state = state === "saving" ? "saving" : state;
+    txt.textContent = map[state] || state;
+    $("#colophonMode").textContent =
+      state === "shared" || state === "saving" ? "변경사항은 공유 링크를 연 모든 사람에게 반영됩니다"
+      : state === "readonly" ? "보기 전용 링크"
+      : "이 기기의 브라우저에 저장됩니다";
+  }
+
+  async function connect(){
+    if (!HOSTED) { setSync("local"); return; }
+    setSync("connecting");
+    const api = await claude.use("artifact");
+    if (!api) { setSync("local"); return; }
+    artifactApi = api;
+    setSync("shared");
+  }
+
+  /* ── 렌더링 ── */
+  function renderTotals(){
+    $("#totals").innerHTML = ["KRW", "CNY"].map(cur => {
+      const c = CUR[cur];
+      const bal = sumAll(balance, cur), use = sumAll(spent, cur), fun = sumAll(funded, cur);
+      const pct = ratio(bal, fun);
+      return `<div class="purse ${c.chip}">
+        <div class="purse-top">
+          <span class="purse-name">${c.label}</span>
+          <span class="chip ${c.chip}">${actives().length}명 합계</span>
+        </div>
+        <div class="purse-fig">${money(cur, bal)}</div>
+        <div class="purse-lab">남은 잔액 · 투입액의 ${Math.round(pct*100)}%</div>
+        <div class="meter ${c.chip} ${pct < .2 ? "low" : ""}"><i style="width:${(pct*100).toFixed(1)}%"></i></div>
+        <div class="purse-split">
+          <div><span class="k">총 투입</span><b>${money(cur, fun)}</b></div>
+          <div><span class="k">누적 사용</span><b>${money(cur, use)}</b></div>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  function pocket(id, cur){
+    const c = CUR[cur];
+    const bal = balance(id, cur), use = spent(id, cur), fun = funded(id, cur);
+    const pct = ratio(bal, fun);
+    return `<div class="pocket ${c.chip} ${bal < 0 ? "neg" : ""}">
+      <div class="pocket-top">
+        <span class="chip ${c.chip}">${c.short}</span>
+        <span class="pocket-val">${money(cur, bal)}</span>
+      </div>
+      <div class="meter ${c.chip} ${pct < .2 ? "low" : ""}"><i style="width:${(pct*100).toFixed(1)}%"></i></div>
+      <div class="pocket-foot"><span>사용 <span class="mono">${money(cur, use)}</span></span><span>투입 <span class="mono">${money(cur, fun)}</span></span></div>
+    </div>`;
+  }
+
+  function renderLedger(){
+    const el = $("#ledger");
+    const ms = actives();
+    el.innerHTML = ms.length ? ms.map(m => `
+      <button class="lrow" type="button" data-mid="${esc(m.id)}">
+        <span class="who">
+          <span class="avatar" aria-hidden="true">${esc(m.name.slice(0, 1))}</span>
+          <span><span class="who-name">${esc(m.name)}</span><br><span class="who-sub">개인 내역 열기</span></span>
+        </span>
+        ${pocket(m.id, "KRW")}
+        ${pocket(m.id, "CNY")}
+        <span class="chev" aria-hidden="true">&rsaquo;</span>
+      </button>`).join("")
+      : `<div class="sheet"><div class="empty">등록된 구성원이 없습니다.</div></div>`;
+    $$(".lrow").forEach(b => b.onclick = () => openDetail(b.dataset.mid));
+  }
+
+  function txRow(g){
+    const total = groupTotal(g), n = groupPeople(g).length;
+    const inflow = g.type === "ADD";
+    return `<tr>
+      <td class="date">${esc(dateShort(g.date))}</td>
+      <td>${esc(g.title)}${g.memo ? `<span class="memo">${esc(g.memo)}</span>` : ""}</td>
+      <td><span class="chip ${CUR[g.currency].chip}">${CUR[g.currency].short}</span></td>
+      <td class="num ${inflow ? "in" : "out"}">${inflow ? "+" : "−"}${money(g.currency, total)}</td>
+      <td><button class="pill-people" type="button" data-people="${esc(g.id)}">${n}명</button></td>
+    </tr>`;
+  }
+
+  function bindPeople(root){
+    root.querySelectorAll("[data-people]").forEach(b => b.onclick = () => openPeople(b.dataset.people));
+  }
+
+  function renderRecent(){
+    const rows = sorted().filter(g => g.type === "EXPENSE").slice(0, 8);
+    $("#recentBody").innerHTML = rows.length ? rows.map(txRow).join("")
+      : `<tr><td colspan="5" class="empty">아직 등록된 내역이 없습니다.</td></tr>`;
+    bindPeople($("#recentBody"));
+  }
+
+  function renderAllDialog(){
+    const rows = sorted().filter(g => g.type === "EXPENSE");
+    $("#allSub").textContent = `${rows.length}건`;
+    $("#allBody").innerHTML = rows.length ? rows.map(txRow).join("")
+      : `<tr><td colspan="5" class="empty">아직 등록된 내역이 없습니다.</td></tr>`;
+    bindPeople($("#allBody"));
+  }
+
+  function renderUpdated(){
+    if (!data.updatedAt) { $("#updatedHint").textContent = ""; return; }
+    const d = new Date(data.updatedAt);
+    $("#updatedHint").textContent = isNaN(d) ? ""
+      : `마지막 갱신 ${d.toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" })}`;
+  }
+
+  function openDetail(mid){
+    const m = byId(mid); if (!m) return;
+    $("#detailTitle").textContent = m.name;
+    const rows = sorted().filter(g => amountOf(g, mid) !== 0);
+    $("#detailSub").textContent = `${rows.length}건의 내역`;
+    $("#detailBody").innerHTML = `
+      <div class="mini-purses">
+        <div class="mini krw"><div class="k">원화 잔액</div><div class="v">${money("KRW", balance(mid,"KRW"))}</div></div>
+        <div class="mini cny"><div class="k">위안 잔액</div><div class="v">${money("CNY", balance(mid,"CNY"))}</div></div>
+      </div>
+      <div class="modal-scroll"><div class="sheet"><div class="scroll">
+        <table>
+          <thead><tr><th>날짜</th><th>내용</th><th>통화</th><th style="text-align:right">변화</th></tr></thead>
+          <tbody>${rows.length ? rows.map(g => {
+            const amt = amountOf(g, mid), inflow = g.type === "ADD";
+            return `<tr>
+              <td class="date">${esc(dateShort(g.date))}</td>
+              <td>${esc(g.title)}</td>
+              <td><span class="chip ${CUR[g.currency].chip}">${CUR[g.currency].short}</span></td>
+              <td class="num ${inflow ? "in" : "out"}">${inflow ? "+" : "−"}${money(g.currency, amt)}</td>
+            </tr>`;
+          }).join("") : `<tr><td colspan="4" class="empty">내역이 없습니다.</td></tr>`}</tbody>
+        </table>
+      </div></div></div>`;
+    detailDialog.showModal();
+  }
+
+  function openPeople(gid){
+    const g = data.groups.find(x => x.id === gid); if (!g) return;
+    const ids = groupPeople(g), inflow = g.type === "ADD";
+    $("#peopleTitle").textContent = g.title;
+    $("#peopleSub").textContent = `${g.date} · ${inflow ? "금액 추가" : "사용금액"} · ${ids.length}명 · 합계 ${fmt[g.currency](groupTotal(g))}`;
+    $("#peopleList").innerHTML = ids.length ? ids.map(id => `
+      <div class="pitem">
+        <span class="n">${esc(byId(id)?.name || id)}</span>
+        <span class="a ${inflow ? "in" : "out"}">${inflow ? "+" : "−"}${money(g.currency, amountOf(g, id))}</span>
+      </div>`).join("") : `<div class="empty">인원이 없습니다.</div>`;
+    peopleDialog.showModal();
+  }
+
+  /* ── 관리자 UI ── */
+  function syncAdminUI(){
+    $("#adminZone").classList.toggle("open", isAdmin);
+    $("#adminBtn").classList.toggle("hide", isAdmin);
+    $("#logoutBtn").classList.toggle("hide", !isAdmin);
+  }
+
+  function personBox(m, prefix){
+    return `<label class="pcheck"><input type="checkbox" id="${prefix}_${esc(m.id)}" value="${esc(m.id)}"><span>${esc(m.name)}</span></label>`;
+  }
+  const picked = sel => $$(`${sel} input[type=checkbox]:checked`).map(x => x.value);
+
+  function renderParticipants(){
+    const ms = actives();
+    const keepExp = picked("#expParticipants"), keepAdd = picked("#addParticipants");
+    $("#expParticipants").innerHTML = ms.map(m => personBox(m, "exp")).join("");
+    $("#addParticipants").innerHTML = ms.map(m => personBox(m, "add")).join("");
+    keepExp.forEach(id => { const cb = $(`#exp_${id}`); if (cb) cb.checked = true; });
+    keepAdd.forEach(id => { const cb = $(`#add_${id}`); if (cb) cb.checked = true; });
+    $$("#expParticipants input").forEach(cb => cb.onchange = () => { renderCustom(); updatePreview(); });
+    renderCustom();
+    updatePreview();
+  }
+
+  function setAll(sel, on){
+    $$(`${sel} input[type=checkbox]`).forEach(cb => cb.checked = on);
+    if (sel === "#expParticipants") { renderCustom(); updatePreview(); }
+  }
+
+  function renderCustom(existing){
+    const ids = picked("#expParticipants");
+    $("#customAmounts").innerHTML = ids.map(id => {
+      const prev = existing ? (existing[id] ?? "") : ($(`#custom_${id}`)?.value ?? "");
+      return `<div class="custom-name">${esc(byId(id)?.name || id)}</div>
+        <input type="number" min="0" step="0.01" id="custom_${esc(id)}" value="${esc(prev)}" placeholder="0">`;
+    }).join("");
+    $$("#customAmounts input").forEach(i => i.oninput = updatePreview);
+  }
+
+  function computedEntries(){
+    const ids = picked("#expParticipants");
+    const mode = $("#expMode").value;
+    const amt = Number($("#expAmount").value || 0);
+    const out = {};
+    if (mode === "CUSTOM") {
+      ids.forEach(id => { const v = Number($(`#custom_${id}`)?.value || 0); if (v > 0) out[id] = v; });
+    } else if (mode === "SPLIT") {
+      if (ids.length && amt > 0) ids.forEach(id => out[id] = amt / ids.length);
+    } else {
+      if (amt > 0) ids.forEach(id => out[id] = amt);
+    }
+    return out;
+  }
+
+  function updatePreview(){
+    const cur = $("#expCurrency").value;
+    const entries = computedEntries();
+    const ids = Object.keys(entries);
+    const box = $("#expPreview");
+    if (!ids.length) {
+      box.innerHTML = `<h4>등록 미리보기</h4><div class="prow"><span style="color:var(--muted)">금액과 인원을 고르면 1인 부담액이 자동으로 계산됩니다.</span></div>`;
+      return;
+    }
+    const total = Object.values(entries).reduce((a, b) => a + b, 0);
+    box.innerHTML = `<h4>등록 미리보기</h4>` +
+      ids.map(id => `<div class="prow"><span>${esc(byId(id)?.name || id)}</span><b class="out">−${money(cur, entries[id])}</b></div>`).join("") +
+      `<div class="prow total"><span>총 반영금액</span><b>${money(cur, total)}</b></div>`;
+  }
+
+  function modeChanged(){
+    const mode = $("#expMode").value;
+    $("#customAmountsField").classList.toggle("hide", mode !== "CUSTOM");
+    $("#commonAmountField").classList.toggle("hide", mode === "CUSTOM");
+    $("#amountLabel").textContent = mode === "SPLIT" ? "전체 총액" : "1인당 금액";
+    renderCustom();
+    updatePreview();
+  }
+
+  const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+  async function saveExpense(){
+    const title = $("#expTitle").value.trim();
+    const date = $("#expDate").value;
+    const cur = $("#expCurrency").value;
+    const entries = computedEntries();
+    if (!date || !title) return toast("날짜와 사용내용을 입력해 주세요.", "bad");
+    if (!Object.keys(entries).length) return toast("사용 인원과 금액을 입력해 주세요.", "bad");
+
+    const over = Object.entries(entries).filter(([id, amt]) => balance(id, cur) < Number(amt));
+    if (over.length) {
+      const msg = over.map(([id, amt]) =>
+        `${byId(id)?.name}: 잔액 ${fmt[cur](balance(id, cur))} / 사용 ${fmt[cur](amt)}`).join("\n");
+      if (!confirm("잔액보다 큰 사용금액이 있습니다.\n\n" + msg + "\n\n그대로 등록할까요?")) return;
+    }
+
+    const g = { id: editingId || uid("G"), date, type: "EXPENSE", title, currency: cur,
+                mode: $("#expMode").value, memo: $("#expMemo").value.trim(), entries };
+    const wasEdit = !!editingId;
+    if (wasEdit) data.groups[data.groups.findIndex(x => x.id === editingId)] = g;
+    else data.groups.push(g);
+
+    if (await persist()) { clearExpenseForm(); toast(wasEdit ? "내역을 수정했습니다." : "지출을 등록했습니다."); }
+  }
+
+  function clearExpenseForm(){
+    editingId = null;
+    $("#expFormTitle").textContent = "사용금액 등록";
+    $("#cancelEditBtn").classList.add("hide");
+    $("#saveExpenseBtn").textContent = "지출 등록";
+    $("#expDate").value = todayISO();
+    $("#expTitle").value = ""; $("#expMemo").value = ""; $("#expAmount").value = "";
+    $("#expMode").value = "SAME";
+    setAll("#expParticipants", false);
+    modeChanged();
+  }
+
+  async function saveAdd(){
+    const date = $("#addDate").value, title = $("#addTitle").value.trim();
+    const cur = $("#addCurrency").value, amt = Number($("#addAmount").value || 0);
+    const ids = picked("#addParticipants");
+    if (!date || !title || amt <= 0 || !ids.length)
+      return toast("날짜·내용·금액·대상을 모두 입력해 주세요.", "bad");
+    const entries = {}; ids.forEach(id => entries[id] = amt);
+    data.groups.push({ id: uid("G"), date, type: "ADD", title, currency: cur, mode: "SAME",
+                       memo: $("#addMemo").value.trim(), entries });
+    if (await persist()) {
+      $("#addTitle").value = ""; $("#addAmount").value = ""; $("#addMemo").value = "";
+      setAll("#addParticipants", false);
+      toast("금액을 추가했습니다.");
+    }
+  }
+
+  function renderManage(){
+    const rows = sorted();
+    $("#manageBody").innerHTML = rows.length ? rows.map(g => `
+      <tr>
+        <td class="date">${esc(dateShort(g.date))}</td>
+        <td>${g.type === "ADD" ? '<span class="chip cny">추가</span>' : '<span class="chip krw">사용</span>'}</td>
+        <td>${esc(g.title)}</td>
+        <td class="num">${money(g.currency, groupTotal(g))}</td>
+        <td><button class="pill-people" type="button" data-people="${esc(g.id)}">${groupPeople(g).length}명</button></td>
+        <td style="white-space:nowrap">
+          ${g.type === "EXPENSE" ? `<button class="btn sm" data-edit="${esc(g.id)}">수정</button> ` : ""}
+          <button class="btn sm warn" data-del="${esc(g.id)}">삭제</button>
+        </td>
+      </tr>`).join("") : `<tr><td colspan="6" class="empty">내역이 없습니다.</td></tr>`;
+    $$("#manageBody [data-del]").forEach(b => b.onclick = () => removeGroup(b.dataset.del));
+    $$("#manageBody [data-edit]").forEach(b => b.onclick = () => editGroup(b.dataset.edit));
+    bindPeople($("#manageBody"));
+  }
+
+  async function removeGroup(id){
+    const g = data.groups.find(x => x.id === id); if (!g) return;
+    if (!confirm(`"${g.title}" 내역을 삭제할까요?\n삭제하면 해당 금액이 잔액에 자동으로 복구됩니다.`)) return;
+    data.groups = data.groups.filter(x => x.id !== id);
+    if (await persist()) toast("내역을 삭제했습니다.");
+  }
+
+  function editGroup(id){
+    const g = data.groups.find(x => x.id === id);
+    if (!g || g.type !== "EXPENSE") return;
+    editingId = id;
+    $("#expFormTitle").textContent = "사용금액 수정";
+    $("#cancelEditBtn").classList.remove("hide");
+    $("#saveExpenseBtn").textContent = "수정 저장";
+    $("#expDate").value = g.date;
+    $("#expTitle").value = g.title;
+    $("#expCurrency").value = g.currency;
+    $("#expMode").value = g.mode || "CUSTOM";
+    $("#expMemo").value = g.memo || "";
+    setAll("#expParticipants", false);
+    Object.keys(g.entries || {}).forEach(mid => { const cb = $(`#exp_${mid}`); if (cb) cb.checked = true; });
+    if (g.mode === "SAME") $("#expAmount").value = Object.values(g.entries)[0] ?? "";
+    else if (g.mode === "SPLIT") $("#expAmount").value = groupTotal(g);
+    else $("#expAmount").value = "";
+    modeChanged();
+    if (g.mode === "CUSTOM") renderCustom(g.entries);
+    updatePreview();
+    $('[data-tab="paneExpense"]').click();
+    $("#adminZone").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function renderMembers(){
+    $("#memberBody").innerHTML = data.members.map(m => `
+      <tr>
+        <td><b>${esc(m.name)}</b>${m.active ? "" : ' <span style="color:var(--muted);font-size:11.5px">비활성</span>'}</td>
+        <td><input style="width:120px" type="number" id="ikr_${esc(m.id)}" value="${esc(m.initialKRW)}"></td>
+        <td><input style="width:106px" type="number" step="0.01" id="icny_${esc(m.id)}" value="${esc(m.initialCNY)}"></td>
+        <td class="num">${money("KRW", balance(m.id, "KRW"))}</td>
+        <td class="num">${money("CNY", balance(m.id, "CNY"))}</td>
+        <td style="white-space:nowrap">
+          <button class="btn sm" data-save-member="${esc(m.id)}">저장</button>
+          <button class="btn sm ${m.active ? "warn" : ""}" data-toggle-member="${esc(m.id)}">${m.active ? "비활성" : "활성"}</button>
+        </td>
+      </tr>`).join("");
+    $$("[data-save-member]").forEach(b => b.onclick = async () => {
+      const m = byId(b.dataset.saveMember); if (!m) return;
+      m.initialKRW = Number($(`#ikr_${m.id}`).value || 0);
+      m.initialCNY = Number($(`#icny_${m.id}`).value || 0);
+      if (await persist()) toast("초기금액을 저장했습니다.");
+    });
+    $$("[data-toggle-member]").forEach(b => b.onclick = async () => {
+      const m = byId(b.dataset.toggleMember); if (!m) return;
+      m.active = !m.active;
+      if (await persist()) toast(`${m.name} 구성원을 ${m.active ? "활성화" : "비활성화"}했습니다.`);
+    });
+  }
+
+  async function addMember(){
+    const name = $("#memberName").value.trim();
+    if (!name) return toast("이름을 입력해 주세요.", "bad");
+    if (data.members.some(m => m.name === name)) return toast("같은 이름의 구성원이 이미 있습니다.", "bad");
+    data.members.push({ id: uid("P"), name,
+      initialKRW: Number($("#memberKRW").value || 0),
+      initialCNY: Number($("#memberCNY").value || 0), active: true });
+    if (await persist()) { $("#memberName").value = ""; toast(`${name} 구성원을 추가했습니다.`); }
+  }
+
+  /* ── PIN (편의 장치) ── */
+  function hashPin(v){
+    let h = 0x811c9dc5; const s = "guilin::" + v;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return h.toString(16).padStart(8, "0");
+  }
+  const pinOK = v => data.pinHash ? hashPin(v) === data.pinHash : v === DEFAULT_PIN;
+
+  async function changePin(){
+    const cur = $("#curPin").value.trim(), a = $("#newPin").value.trim(), b = $("#newPin2").value.trim();
+    if (!pinOK(cur)) return toast("현재 PIN이 올바르지 않습니다.", "bad");
+    if (a.length < 4) return toast("새 PIN은 4자리 이상으로 입력해 주세요.", "bad");
+    if (a !== b) return toast("새 PIN과 확인 PIN이 다릅니다.", "bad");
+    data.pinHash = hashPin(a);
+    if (await persist()) {
+      $("#curPin").value = $("#newPin").value = $("#newPin2").value = "";
+      toast("관리자 PIN을 변경했습니다.");
+    }
+  }
+
+  function login(){
+    if (!pinOK($("#adminPin").value)) return toast("PIN이 올바르지 않습니다.", "bad");
+    isAdmin = true;
+    store.set("sessionStorage", SS_ADMIN, "1");
+    adminDialog.close();
+    $("#adminPin").value = "";
+    syncAdminUI();
+    $("#adminZone").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  /* ── CSV ── */
+  function buildCSV(){
+    const rows = [["날짜", "구분", "내용", "통화", "이름", "금액", "메모"]];
+    sorted().slice().reverse().forEach(g => {
+      Object.entries(g.entries || {}).forEach(([mid, amt]) => {
+        rows.push([g.date, g.type === "ADD" ? "추가" : "사용", g.title, g.currency,
+                   byId(mid)?.name || mid, amt, g.memo || ""]);
+      });
+    });
+    return "﻿" + rows.map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\r\n");
+  }
+
+  async function exportCSV(){
+    const csv = buildCSV();
+    const filename = `guilin-expense-${todayISO()}.csv`;
+    if (HOSTED) {
+      const dl = await claude.use("downloads");
+      if (dl) {
+        try { await dl.save({ filename, data: csv }); toast("CSV를 내려받았습니다."); }
+        catch (e) { if (e?.code !== "declined") toast("내려받지 못했습니다: " + (e?.message || ""), "bad"); }
+        return;
+      }
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  /* ── 토스트 ── */
+  let toastTimer = null;
+  function toast(msg, kind){
+    const el = $("#toast");
+    el.textContent = msg;
+    el.className = "toast show" + (kind === "bad" ? " bad" : "");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = "toast" + (kind === "bad" ? " bad" : ""); }, 3200);
+  }
+
+  function renderAll(){
+    renderTotals(); renderLedger(); renderRecent(); renderAllDialog(); renderUpdated();
+    renderManage(); renderMembers(); renderParticipants(); syncAdminUI();
+  }
+
+  /* ── 이벤트 ── */
+  $("#adminBtn").onclick = () => adminDialog.showModal();
+  $("#loginBtn").onclick = login;
+  $("#adminPin").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
+  $("#logoutBtn").onclick = () => { isAdmin = false; store.del("sessionStorage", SS_ADMIN); syncAdminUI(); };
+  $("#showAllBtn").onclick = () => allDialog.showModal();
+  $("#exportBtn").onclick = exportCSV;
+  $("#saveExpenseBtn").onclick = saveExpense;
+  $("#saveAddBtn").onclick = saveAdd;
+  $("#addMemberBtn").onclick = addMember;
+  $("#changePinBtn").onclick = changePin;
+  $("#cancelEditBtn").onclick = clearExpenseForm;
+  $("#closeAdminDlg").onclick = () => adminDialog.close();
+  $("#closeDetailDlg").onclick = () => detailDialog.close();
+  $("#closeAllDlg").onclick = () => allDialog.close();
+  $("#closePeopleDlg").onclick = () => peopleDialog.close();
+  $("#resetDataBtn").onclick = async () => {
+    if (!confirm("지금까지의 변경을 모두 지우고 최초 데이터로 되돌릴까요?")) return;
+    data = normalize(JSON.parse(new DOMParser()
+      .parseFromString(PRISTINE, "text/html").getElementById("appState").textContent));
+    if (await persist()) { clearExpenseForm(); toast("최초 데이터로 되돌렸습니다."); }
+  };
+  $("#selectAllExp").onclick = () => setAll("#expParticipants", true);
+  $("#clearAllExp").onclick  = () => setAll("#expParticipants", false);
+  $("#selectAllAdd").onclick = () => setAll("#addParticipants", true);
+  $("#clearAllAdd").onclick  = () => setAll("#addParticipants", false);
+  $("#expMode").onchange = modeChanged;
+  $("#expAmount").oninput = updatePreview;
+  $("#expCurrency").onchange = updatePreview;
+  $$(".tab").forEach(t => t.onclick = () => {
+    $$(".tab").forEach(x => x.classList.remove("active"));
+    $$(".pane").forEach(p => p.classList.remove("active"));
+    t.classList.add("active");
+    $("#" + t.dataset.tab).classList.add("active");
+  });
+
+  /* ── 시작 ── */
+  $("#expDate").value = todayISO();
+  $("#addDate").value = todayISO();
+  renderAll();
+  modeChanged();
+  setSync(syncState);
+  connect();
+})();
+</script>
+</body>
+</html>
