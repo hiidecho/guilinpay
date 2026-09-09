@@ -109,12 +109,18 @@ button{cursor:pointer}
   white-space:nowrap;
 }
 .sync .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none}
-.sync[data-state="shared"]{border-color:var(--jade-line);background:var(--jade-soft);color:var(--jade-2)}
-.sync[data-state="shared"] .dot{background:var(--jade)}
-.sync[data-state="local"]{border-color:var(--yuan-line);background:var(--yuan-soft);color:var(--yuan)}
-.sync[data-state="local"] .dot{background:var(--yuan)}
-.sync[data-state="readonly"]{border-color:var(--line-2)}
+.sync[data-state="online"],
+.sync[data-state="admin"]{border-color:var(--jade-line);background:var(--jade-soft);color:var(--jade-2)}
+.sync[data-state="online"] .dot,
+.sync[data-state="admin"] .dot{background:var(--jade)}
+.sync[data-state="setup"]{border-color:var(--yuan-line);background:var(--yuan-soft);color:var(--yuan)}
+.sync[data-state="setup"] .dot{background:var(--yuan)}
+.sync[data-state="offline"]{border-color:var(--alert-line);background:var(--alert-soft);color:var(--alert)}
+.sync[data-state="offline"] .dot{background:var(--alert)}
+.sync[data-state="connecting"] .dot,
 .sync[data-state="saving"] .dot{background:var(--jade);animation:pulse 1s ease-in-out infinite}
+code{font-family:var(--f-mono);font-size:.92em;background:var(--surface-2);
+  padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
 @keyframes pulse{50%{opacity:.25}}
 
 /* ---------- buttons ---------- */
@@ -374,14 +380,21 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
       <p class="dek">원화(KRW)와 위안(CNY)을 서로 섞지 않고 각각의 지갑으로 관리합니다. 이름을 누르면 개인별 상세 내역이 열립니다.</p>
     </div>
     <div class="mast-side">
-      <span class="sync" id="syncPill" data-state="local"><span class="dot"></span><span id="syncText">불러오는 중</span></span>
+      <span class="sync" id="syncPill" data-state="connecting"><span class="dot"></span><span id="syncText">연결 중</span></span>
       <div class="toolbar">
+        <button class="btn" id="refreshBtn">새로고침</button>
         <button class="btn" id="exportBtn">CSV 내려받기</button>
         <button class="btn primary" id="adminBtn">관리자</button>
         <button class="btn warn hide" id="logoutBtn">관리자 종료</button>
       </div>
     </div>
   </header>
+
+  <div class="note warn hide" id="setupNotice">
+    <b>Supabase 연결 정보가 아직 입력되지 않았습니다.</b><br>
+    <code>src/artifact-body.html</code> 상단의 <code>SUPABASE_URL</code> 과 <code>SUPABASE_ANON_KEY</code> 를 채우고
+    <code>./deploy.sh</code> 로 다시 배포하세요. 준비 순서는 저장소의 <code>supabase/README.md</code> 에 있습니다.
+  </div>
 
   <section>
     <div class="sec-head">
@@ -423,7 +436,7 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
       <button class="tab" data-tab="paneAdd">금액 추가</button>
       <button class="tab" data-tab="paneManage">내역 관리</button>
       <button class="tab" data-tab="paneMember">구성원</button>
-      <button class="tab" data-tab="panePin">PIN 설정</button>
+      <button class="tab" data-tab="panePin">비밀번호</button>
     </div>
 
     <div class="pane active" id="paneExpense">
@@ -496,7 +509,6 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
       <div class="panel">
         <div class="panel-head">
           <h3>전체 내역 관리</h3>
-          <button class="btn sm warn" id="resetDataBtn">최초 데이터로 초기화</button>
         </div>
         <div class="sheet"><div class="scroll">
           <table>
@@ -528,16 +540,15 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
 
     <div class="pane" id="panePin">
       <div class="panel">
-        <div class="panel-head"><h3>관리자 PIN 설정</h3></div>
-        <div class="note warn">
-          <b>PIN은 편의 장치입니다.</b> 이 페이지는 정적 HTML이라 PIN만으로는 열람을 막을 수 없습니다.
-          실제 수정 권한은 이 페이지를 공유한 방식(보기 전용 / 편집 가능)이 결정합니다.
+        <div class="panel-head"><h3>관리자 비밀번호 변경</h3></div>
+        <div class="note">
+          <b>비밀번호는 Supabase 서버가 검증합니다.</b> 브라우저에는 비밀이 저장되지 않고,
+          편집 권한은 데이터베이스의 RLS 정책이 막습니다. 로그인하지 않은 사람은 조회만 가능합니다.
         </div>
         <div class="form">
-          <div class="f wide"><label for="curPin">현재 PIN</label><input id="curPin" type="password" inputmode="numeric" placeholder="현재 PIN"></div>
-          <div class="f"><label for="newPin">새 PIN</label><input id="newPin" type="password" inputmode="numeric" placeholder="4자리 이상"></div>
-          <div class="f"><label for="newPin2">새 PIN 확인</label><input id="newPin2" type="password" inputmode="numeric" placeholder="다시 입력"></div>
-          <div class="f wide"><button class="btn primary" id="changePinBtn">PIN 변경</button></div>
+          <div class="f"><label for="newPin">새 비밀번호</label><input id="newPin" type="password" placeholder="6자 이상"></div>
+          <div class="f"><label for="newPin2">새 비밀번호 확인</label><input id="newPin2" type="password" placeholder="다시 입력"></div>
+          <div class="f wide"><button class="btn primary" id="changePinBtn">비밀번호 변경</button></div>
         </div>
       </div>
     </div>
@@ -552,14 +563,14 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
 <dialog id="adminDialog">
   <div class="modal">
     <div class="modal-head">
-      <div><h3>관리자 로그인</h3><div class="sub">등록·수정 기능을 엽니다</div></div>
+      <div><h3>관리자 로그인</h3><div class="sub">서버에서 확인 후 등록·수정 기능을 엽니다</div></div>
       <button class="x" id="closeAdminDlg" aria-label="닫기">&times;</button>
     </div>
-    <div class="f"><label for="adminPin">관리자 PIN</label><input id="adminPin" type="password" inputmode="numeric" placeholder="기본 PIN 1234"></div>
+    <div class="f"><label for="adminPin">관리자 비밀번호</label><input id="adminPin" type="password" placeholder="비밀번호 입력"></div>
     <div style="height:14px"></div>
     <button class="btn primary" style="width:100%" id="loginBtn">관리자 모드 열기</button>
-    <p class="note warn" style="margin:14px 0 0">
-      기본 PIN은 <b>1234</b>이며 관리자 콘솔에서 변경할 수 있습니다. 정적 페이지의 PIN은 보안 장치가 아니라 실수 방지용입니다.
+    <p class="note" style="margin:14px 0 0">
+      Supabase에 등록된 관리자 계정으로 로그인합니다. 비밀번호는 서버에서 검증되며 브라우저에 저장되지 않습니다.
     </p>
   </div>
 </dialog>
@@ -601,53 +612,25 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script type="application/json" id="appState">
-{
- "members": [
-  {"id":"P01","name":"안창은","initialKRW":100000,"initialCNY":930,"active":true},
-  {"id":"P02","name":"조희대","initialKRW":100000,"initialCNY":465,"active":true},
-  {"id":"P03","name":"이민성","initialKRW":100000,"initialCNY":930,"active":true},
-  {"id":"P04","name":"목정훈","initialKRW":100000,"initialCNY":930,"active":true},
-  {"id":"P05","name":"송기정","initialKRW":100000,"initialCNY":465,"active":true}
- ],
- "groups": [
-  {"id":"G001","date":"2026-09-07","type":"EXPENSE","title":"롯데리아","currency":"KRW","mode":"CUSTOM","memo":"","entries":{"P01":9500,"P02":9500,"P03":8900,"P04":9500,"P05":9500}},
-  {"id":"G002","date":"2026-09-07","type":"EXPENSE","title":"노포","currency":"KRW","mode":"SAME","memo":"","entries":{"P01":20600,"P03":20600,"P04":20600,"P05":20600}},
-  {"id":"G003","date":"2026-09-07","type":"EXPENSE","title":"피자","currency":"CNY","mode":"SAME","memo":"","entries":{"P01":25,"P03":25,"P04":25,"P05":25}},
-  {"id":"G004","date":"2026-09-07","type":"EXPENSE","title":"커피","currency":"CNY","mode":"SAME","memo":"","entries":{"P01":20,"P03":20,"P04":20}},
-  {"id":"G005","date":"2026-09-07","type":"EXPENSE","title":"맥주·백주 저녁","currency":"CNY","mode":"SAME","memo":"7일 저녁","entries":{"P01":175,"P03":175,"P04":175}},
-  {"id":"G006","date":"2026-09-07","type":"EXPENSE","title":"점심","currency":"CNY","mode":"CUSTOM","memo":"송기정 기록","entries":{"P05":44}},
-  {"id":"G007","date":"2026-09-07","type":"EXPENSE","title":"커피","currency":"CNY","mode":"SAME","memo":"","entries":{"P01":25,"P03":25,"P04":25,"P05":25}},
-  {"id":"G008","date":"2026-09-08","type":"EXPENSE","title":"8일 점심","currency":"CNY","mode":"SAME","memo":"","entries":{"P01":117,"P02":117,"P03":117,"P04":117,"P05":117}},
-  {"id":"G009","date":"2026-09-08","type":"EXPENSE","title":"8일 저녁","currency":"CNY","mode":"SAME","memo":"","entries":{"P03":226,"P04":226}},
-  {"id":"G010","date":"2026-09-09","type":"EXPENSE","title":"9일 점심","currency":"CNY","mode":"CUSTOM","memo":"","entries":{"P01":52,"P03":51,"P04":61,"P05":69}},
-  {"id":"G011","date":"2026-09-09","type":"EXPENSE","title":"커피","currency":"CNY","mode":"CUSTOM","memo":"안창은","entries":{"P01":20}}
- ],
- "pinHash": null,
- "updatedAt": null
-}
-</script>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
 <script>
 (() => {
   "use strict";
 
-  /* ── 자기 자신을 다시 발행하기 위해, 렌더링 전의 원본 문서를 붙잡아 둔다 ── */
-  const PRISTINE = document.documentElement.outerHTML;
+  /* ══════════════════════════════════════════════════════════
+     설정 — Supabase 대시보드 → Project Settings → API 에서 복사
+     anon key 는 공개되어도 되는 키입니다. 실제 권한은 DB의 RLS 정책이 막습니다.
+     service_role 키는 절대 여기에 넣지 마세요.
+     ══════════════════════════════════════════════════════════ */
+  const SUPABASE_URL      = "";   // 예: https://abcdefghijklm.supabase.co
+  const SUPABASE_ANON_KEY = "";   // 예: eyJhbGciOi...
+  const ADMIN_EMAIL       = "admin@guilinpay.local";  // 관리자 계정 이메일
 
-  const LS_KEY = "guilin_expense_v2";
-  const SS_ADMIN = "guilin_admin";
-  const DEFAULT_PIN = "1234";
-  const HOSTED = typeof window.claude?.use === "function";
+  const READY = /^https:\/\/.+\.supabase\.co$/.test(SUPABASE_URL) && SUPABASE_ANON_KEY.length > 40;
+  const sb = READY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-  /* 미리보기·썸네일·저장소 차단 환경에서는 접근 자체가 예외를 던진다 */
-  const store = {
-    get(area, k){ try { return window[area].getItem(k); } catch (e) { return null; } },
-    set(area, k, v){ try { window[area].setItem(k, v); } catch (e) {} },
-    del(area, k){ try { window[area].removeItem(k); } catch (e) {} }
-  };
-
-  const $ = s => document.querySelector(s);
+  /* ── 유틸 ── */
+  const $  = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c =>
     ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
@@ -669,35 +652,15 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
   }
 
-  /* ── 상태 ── */
-  function normalize(raw){
-    const o = (raw && typeof raw === "object") ? raw : {};
-    return {
-      members: Array.isArray(o.members) ? o.members : [],
-      groups:  Array.isArray(o.groups)  ? o.groups  : [],
-      pinHash: o.pinHash ?? null,
-      updatedAt: o.updatedAt ?? null
-    };
-  }
-
-  let data = normalize(JSON.parse($("#appState").textContent));
-  if (!HOSTED) {
-    try {
-      const raw = store.get("localStorage", LS_KEY);
-      if (raw) data = normalize(JSON.parse(raw));
-    } catch (e) { /* 저장본이 깨졌으면 최초 데이터로 */ }
-  }
-
-  let isAdmin = store.get("sessionStorage", SS_ADMIN) === "1";
+  /* ── 상태 (서버가 원본, 이건 화면용 사본) ── */
+  let data = { members: [], groups: [] };
+  let isAdmin = false;
   let editingId = null;
-  let artifactApi = null;
-  let syncState = HOSTED ? "connecting" : "local";
-  let saving = false, queued = false;
+  let busy = false;
 
-  /* ── 계산 ── */
-  const byId = id => data.members.find(m => m.id === id);
-  const actives = () => data.members.filter(m => m.active);
-  const amountOf = (g, id) => Number(g.entries?.[id] || 0);
+  const byId      = id => data.members.find(m => m.id === id);
+  const actives   = () => data.members.filter(m => m.active);
+  const amountOf  = (g, id) => Number(g.entries?.[id] || 0);
 
   function funded(id, cur){
     const m = byId(id); if (!m) return 0;
@@ -709,82 +672,133 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     return data.groups.reduce((s, g) =>
       (g.type === "EXPENSE" && g.currency === cur) ? s + amountOf(g, id) : s, 0);
   }
-  const balance = (id, cur) => funded(id, cur) - spent(id, cur);
-  const sumAll = (fn, cur) => actives().reduce((s, m) => s + fn(m.id, cur), 0);
-  const groupTotal = g => Object.values(g.entries || {}).reduce((a, b) => a + Number(b || 0), 0);
+  const balance     = (id, cur) => funded(id, cur) - spent(id, cur);
+  const sumAll      = (fn, cur) => actives().reduce((s, m) => s + fn(m.id, cur), 0);
+  const groupTotal  = g => Object.values(g.entries || {}).reduce((a, b) => a + Number(b || 0), 0);
   const groupPeople = g => Object.keys(g.entries || {}).filter(k => Number(g.entries[k]) !== 0);
-  const sorted = () => [...data.groups].sort((a, b) =>
+  const sorted      = () => [...data.groups].sort((a, b) =>
     String(b.date).localeCompare(String(a.date)) || String(b.id).localeCompare(String(a.id)));
-  const dateShort = d => String(d || "").slice(5).replace("-", "/");
-  const ratio = (n, d) => d > 0 ? Math.max(0, Math.min(1, n / d)) : 0;
+  const dateShort   = d => String(d || "").slice(5).replace("-", "/");
+  const ratio       = (n, d) => d > 0 ? Math.max(0, Math.min(1, n / d)) : 0;
+  const uid         = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-  /* ── 저장: 공유 발행 또는 브라우저 저장 ── */
-  function buildDoc(state){
-    const doc = new DOMParser().parseFromString(PRISTINE, "text/html");
-    doc.getElementById("appState").textContent = "\n" + JSON.stringify(state, null, 1) + "\n";
-    return "<!doctype html>\n" + doc.documentElement.outerHTML;
-  }
+  /* ══════════════════════════════════════════════════════════
+     데이터 계층 — Supabase
+     ══════════════════════════════════════════════════════════ */
+  const db = {
+    async loadAll(){
+      const [mRes, tRes, eRes] = await Promise.all([
+        sb.from("members").select("*").order("sort_order"),
+        sb.from("transactions").select("*").order("date", { ascending: false }),
+        sb.from("transaction_entries").select("*")
+      ]);
+      for (const r of [mRes, tRes, eRes]) if (r.error) throw r.error;
 
-  async function persist(){
-    data.updatedAt = new Date().toISOString();
-    renderAll();
+      const entriesBy = {};
+      eRes.data.forEach(r => {
+        (entriesBy[r.transaction_id] ||= {})[r.member_id] = Number(r.amount);
+      });
 
-    if (!artifactApi) {
-      if (!HOSTED) store.set("localStorage", LS_KEY, JSON.stringify(data));
-      return true;
-    }
-    if (saving) { queued = true; return true; }
+      return {
+        members: mRes.data.map(r => ({
+          id: r.id, name: r.name,
+          initialKRW: Number(r.initial_krw), initialCNY: Number(r.initial_cny),
+          active: r.active, sortOrder: r.sort_order
+        })),
+        groups: tRes.data.map(r => ({
+          id: r.id, date: r.date, type: r.type, title: r.title,
+          currency: r.currency, mode: r.mode, memo: r.memo || "",
+          entries: entriesBy[r.id] || {}
+        }))
+      };
+    },
 
-    saving = true; setSync("saving");
-    try {
-      await artifactApi.publish(buildDoc(data));
-      return true;
-    } catch (err) {
-      const code = err?.code;
-      if (code === "conflict") return true;              // 다른 편집이 먼저 반영됨 — 전체 화면이 최신본으로 새로고침된다
-      if (code === "not_writer" || code === "not_granted") {
-        setSync("readonly");
-        toast("이 링크는 보기 전용입니다. 편집하려면 편집 권한으로 공유받아야 합니다.", "bad");
-        return false;
+    async saveTransaction(g){
+      const { error } = await sb.from("transactions").upsert({
+        id: g.id, date: g.date, type: g.type, title: g.title,
+        currency: g.currency, mode: g.mode, memo: g.memo || ""
+      });
+      if (error) throw error;
+
+      /* 부담액은 통째로 교체한다 — 인원이 빠진 수정도 정확히 반영된다 */
+      const del = await sb.from("transaction_entries").delete().eq("transaction_id", g.id);
+      if (del.error) throw del.error;
+
+      const rows = Object.entries(g.entries)
+        .filter(([, amt]) => Number(amt) !== 0)
+        .map(([member_id, amount]) => ({ transaction_id: g.id, member_id, amount }));
+      if (rows.length) {
+        const ins = await sb.from("transaction_entries").insert(rows);
+        if (ins.error) throw ins.error;
       }
-      if (code === "rate_limited") { toast("저장이 너무 잦습니다. 잠시 후 다시 시도해 주세요.", "bad"); return false; }
-      toast("저장하지 못했습니다: " + (err?.message || "알 수 없는 오류"), "bad");
-      return false;
-    } finally {
-      saving = false;
-      if (syncState === "saving") setSync("shared");
-      if (queued) { queued = false; persist(); }
+    },
+
+    async deleteTransaction(id){
+      const { error } = await sb.from("transactions").delete().eq("id", id);
+      if (error) throw error;   /* entries 는 on delete cascade 로 함께 지워진다 */
+    },
+
+    async saveMember(m){
+      const { error } = await sb.from("members").upsert({
+        id: m.id, name: m.name,
+        initial_krw: m.initialKRW, initial_cny: m.initialCNY,
+        active: m.active, sort_order: m.sortOrder ?? 0
+      });
+      if (error) throw error;
     }
+  };
+
+  /* ══════════════════════════════════════════════════════════
+     인증 — 서버(Supabase Auth)가 검증한다. 프론트에는 비밀이 없다.
+     ══════════════════════════════════════════════════════════ */
+  const auth = {
+    async login(password){
+      const { error } = await sb.auth.signInWithPassword({ email: ADMIN_EMAIL, password });
+      if (error) throw error;
+    },
+    async logout(){ await sb.auth.signOut(); },
+    async changePassword(next){
+      const { error } = await sb.auth.updateUser({ password: next });
+      if (error) throw error;
+    }
+  };
+
+  /* 서버가 돌려준 오류를 사람이 읽을 수 있게 */
+  function reason(err){
+    const m = String(err?.message || err || "");
+    if (/Invalid login credentials/i.test(m))          return "비밀번호가 올바르지 않습니다.";
+    if (/Email not confirmed/i.test(m))                return "관리자 계정의 이메일 인증이 끝나지 않았습니다. Supabase에서 확인해 주세요.";
+    if (/row-level security|violates row-level/i.test(m)) return "편집 권한이 없습니다. 관리자로 로그인해 주세요.";
+    if (/JWT|expired/i.test(m))                        return "로그인이 만료되었습니다. 다시 로그인해 주세요.";
+    if (/Failed to fetch|NetworkError|fetch/i.test(m)) return "서버에 연결하지 못했습니다. 네트워크를 확인해 주세요.";
+    if (/should be at least/i.test(m))                 return "비밀번호가 너무 짧습니다. 6자 이상으로 정해주세요.";
+    return m || "알 수 없는 오류";
   }
 
-  function setSync(state){
-    syncState = state;
+  /* ══════════════════════════════════════════════════════════
+     연결 상태 표시
+     ══════════════════════════════════════════════════════════ */
+  function setStatus(state, detail){
     const pill = $("#syncPill"), txt = $("#syncText");
-    const map = {
+    const label = {
       connecting: "연결 중",
-      shared:     "공유 저장 · 모두에게 반영",
+      online:     "서버 연결됨 · 모두에게 반영",
       saving:     "저장하는 중",
-      readonly:   "보기 전용",
-      local:      "이 브라우저에만 저장"
-    };
-    pill.dataset.state = state === "saving" ? "saving" : state;
-    txt.textContent = map[state] || state;
+      admin:      "관리자 로그인됨",
+      offline:    "서버 연결 실패",
+      setup:      "설정 필요"
+    }[state] || state;
+    pill.dataset.state = state;
+    txt.textContent = detail ? `${label} · ${detail}` : label;
     $("#colophonMode").textContent =
-      state === "shared" || state === "saving" ? "변경사항은 공유 링크를 연 모든 사람에게 반영됩니다"
-      : state === "readonly" ? "보기 전용 링크"
-      : "이 기기의 브라우저에 저장됩니다";
+      state === "setup"   ? "Supabase 연결 정보가 아직 입력되지 않았습니다"
+    : state === "offline" ? "서버에 연결하지 못해 화면이 갱신되지 않습니다"
+    : "등록한 내역은 모든 사람의 화면에 반영됩니다";
   }
 
-  async function connect(){
-    if (!HOSTED) { setSync("local"); return; }
-    setSync("connecting");
-    const api = await claude.use("artifact");
-    if (!api) { setSync("local"); return; }
-    artifactApi = api;
-    setSync("shared");
-  }
-
-  /* ── 렌더링 ── */
+  /* ══════════════════════════════════════════════════════════
+     렌더링
+     ══════════════════════════════════════════════════════════ */
   function renderTotals(){
     $("#totals").innerHTML = ["KRW", "CNY"].map(cur => {
       const c = CUR[cur];
@@ -821,9 +835,8 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
   }
 
   function renderLedger(){
-    const el = $("#ledger");
     const ms = actives();
-    el.innerHTML = ms.length ? ms.map(m => `
+    $("#ledger").innerHTML = ms.length ? ms.map(m => `
       <button class="lrow" type="button" data-mid="${esc(m.id)}">
         <span class="who">
           <span class="avatar" aria-hidden="true">${esc(m.name.slice(0, 1))}</span>
@@ -849,9 +862,8 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     </tr>`;
   }
 
-  function bindPeople(root){
+  const bindPeople = root =>
     root.querySelectorAll("[data-people]").forEach(b => b.onclick = () => openPeople(b.dataset.people));
-  }
 
   function renderRecent(){
     const rows = sorted().filter(g => g.type === "EXPENSE").slice(0, 8);
@@ -869,10 +881,9 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
   }
 
   function renderUpdated(){
-    if (!data.updatedAt) { $("#updatedHint").textContent = ""; return; }
-    const d = new Date(data.updatedAt);
-    $("#updatedHint").textContent = isNaN(d) ? ""
-      : `마지막 갱신 ${d.toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" })}`;
+    $("#updatedHint").textContent = data.groups.length
+      ? `${new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} 기준`
+      : "";
   }
 
   function openDetail(mid){
@@ -918,13 +929,12 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
   /* ── 관리자 UI ── */
   function syncAdminUI(){
     $("#adminZone").classList.toggle("open", isAdmin);
-    $("#adminBtn").classList.toggle("hide", isAdmin);
+    $("#adminBtn").classList.toggle("hide", isAdmin || !READY);
     $("#logoutBtn").classList.toggle("hide", !isAdmin);
   }
 
-  function personBox(m, prefix){
-    return `<label class="pcheck"><input type="checkbox" id="${prefix}_${esc(m.id)}" value="${esc(m.id)}"><span>${esc(m.name)}</span></label>`;
-  }
+  const personBox = (m, prefix) =>
+    `<label class="pcheck"><input type="checkbox" id="${prefix}_${esc(m.id)}" value="${esc(m.id)}"><span>${esc(m.name)}</span></label>`;
   const picked = sel => $$(`${sel} input[type=checkbox]:checked`).map(x => x.value);
 
   function renderParticipants(){
@@ -945,8 +955,7 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
   }
 
   function renderCustom(existing){
-    const ids = picked("#expParticipants");
-    $("#customAmounts").innerHTML = ids.map(id => {
+    $("#customAmounts").innerHTML = picked("#expParticipants").map(id => {
       const prev = existing ? (existing[id] ?? "") : ($(`#custom_${id}`)?.value ?? "");
       return `<div class="custom-name">${esc(byId(id)?.name || id)}</div>
         <input type="number" min="0" step="0.01" id="custom_${esc(id)}" value="${esc(prev)}" placeholder="0">`;
@@ -962,7 +971,7 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     if (mode === "CUSTOM") {
       ids.forEach(id => { const v = Number($(`#custom_${id}`)?.value || 0); if (v > 0) out[id] = v; });
     } else if (mode === "SPLIT") {
-      if (ids.length && amt > 0) ids.forEach(id => out[id] = amt / ids.length);
+      if (ids.length && amt > 0) ids.forEach(id => out[id] = Math.round(amt / ids.length * 100) / 100);
     } else {
       if (amt > 0) ids.forEach(id => out[id] = amt);
     }
@@ -993,12 +1002,30 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     updatePreview();
   }
 
-  const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  /* ══════════════════════════════════════════════════════════
+     쓰기 동작 — 서버에 먼저 쓰고, 성공하면 다시 읽어 화면을 맞춘다
+     ══════════════════════════════════════════════════════════ */
+  async function commit(work, okMsg){
+    if (busy) return false;
+    busy = true; setStatus("saving");
+    try {
+      await work();
+      await refresh();
+      if (okMsg) toast(okMsg);
+      return true;
+    } catch (err) {
+      toast(reason(err), "bad");
+      setStatus(isAdmin ? "admin" : "online");
+      return false;
+    } finally {
+      busy = false;
+    }
+  }
 
   async function saveExpense(){
     const title = $("#expTitle").value.trim();
-    const date = $("#expDate").value;
-    const cur = $("#expCurrency").value;
+    const date  = $("#expDate").value;
+    const cur   = $("#expCurrency").value;
     const entries = computedEntries();
     if (!date || !title) return toast("날짜와 사용내용을 입력해 주세요.", "bad");
     if (!Object.keys(entries).length) return toast("사용 인원과 금액을 입력해 주세요.", "bad");
@@ -1010,13 +1037,12 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
       if (!confirm("잔액보다 큰 사용금액이 있습니다.\n\n" + msg + "\n\n그대로 등록할까요?")) return;
     }
 
+    const wasEdit = !!editingId;
     const g = { id: editingId || uid("G"), date, type: "EXPENSE", title, currency: cur,
                 mode: $("#expMode").value, memo: $("#expMemo").value.trim(), entries };
-    const wasEdit = !!editingId;
-    if (wasEdit) data.groups[data.groups.findIndex(x => x.id === editingId)] = g;
-    else data.groups.push(g);
 
-    if (await persist()) { clearExpenseForm(); toast(wasEdit ? "내역을 수정했습니다." : "지출을 등록했습니다."); }
+    if (await commit(() => db.saveTransaction(g), wasEdit ? "내역을 수정했습니다." : "지출을 등록했습니다."))
+      clearExpenseForm();
   }
 
   function clearExpenseForm(){
@@ -1037,13 +1063,14 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     const ids = picked("#addParticipants");
     if (!date || !title || amt <= 0 || !ids.length)
       return toast("날짜·내용·금액·대상을 모두 입력해 주세요.", "bad");
+
     const entries = {}; ids.forEach(id => entries[id] = amt);
-    data.groups.push({ id: uid("G"), date, type: "ADD", title, currency: cur, mode: "SAME",
-                       memo: $("#addMemo").value.trim(), entries });
-    if (await persist()) {
+    const g = { id: uid("G"), date, type: "ADD", title, currency: cur, mode: "SAME",
+                memo: $("#addMemo").value.trim(), entries };
+
+    if (await commit(() => db.saveTransaction(g), "금액을 추가했습니다.")) {
       $("#addTitle").value = ""; $("#addAmount").value = ""; $("#addMemo").value = "";
       setAll("#addParticipants", false);
-      toast("금액을 추가했습니다.");
     }
   }
 
@@ -1066,11 +1093,10 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     bindPeople($("#manageBody"));
   }
 
-  async function removeGroup(id){
+  function removeGroup(id){
     const g = data.groups.find(x => x.id === id); if (!g) return;
     if (!confirm(`"${g.title}" 내역을 삭제할까요?\n삭제하면 해당 금액이 잔액에 자동으로 복구됩니다.`)) return;
-    data.groups = data.groups.filter(x => x.id !== id);
-    if (await persist()) toast("내역을 삭제했습니다.");
+    commit(() => db.deleteTransaction(id), "내역을 삭제했습니다.");
   }
 
   function editGroup(id){
@@ -1087,9 +1113,9 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     $("#expMemo").value = g.memo || "";
     setAll("#expParticipants", false);
     Object.keys(g.entries || {}).forEach(mid => { const cb = $(`#exp_${mid}`); if (cb) cb.checked = true; });
-    if (g.mode === "SAME") $("#expAmount").value = Object.values(g.entries)[0] ?? "";
+    if (g.mode === "SAME")       $("#expAmount").value = Object.values(g.entries)[0] ?? "";
     else if (g.mode === "SPLIT") $("#expAmount").value = groupTotal(g);
-    else $("#expAmount").value = "";
+    else                          $("#expAmount").value = "";
     modeChanged();
     if (g.mode === "CUSTOM") renderCustom(g.entries);
     updatePreview();
@@ -1110,61 +1136,58 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
           <button class="btn sm ${m.active ? "warn" : ""}" data-toggle-member="${esc(m.id)}">${m.active ? "비활성" : "활성"}</button>
         </td>
       </tr>`).join("");
-    $$("[data-save-member]").forEach(b => b.onclick = async () => {
+
+    $$("[data-save-member]").forEach(b => b.onclick = () => {
       const m = byId(b.dataset.saveMember); if (!m) return;
-      m.initialKRW = Number($(`#ikr_${m.id}`).value || 0);
-      m.initialCNY = Number($(`#icny_${m.id}`).value || 0);
-      if (await persist()) toast("초기금액을 저장했습니다.");
+      const next = { ...m,
+        initialKRW: Number($(`#ikr_${m.id}`).value || 0),
+        initialCNY: Number($(`#icny_${m.id}`).value || 0) };
+      commit(() => db.saveMember(next), "초기금액을 저장했습니다.");
     });
-    $$("[data-toggle-member]").forEach(b => b.onclick = async () => {
+    $$("[data-toggle-member]").forEach(b => b.onclick = () => {
       const m = byId(b.dataset.toggleMember); if (!m) return;
-      m.active = !m.active;
-      if (await persist()) toast(`${m.name} 구성원을 ${m.active ? "활성화" : "비활성화"}했습니다.`);
+      const next = { ...m, active: !m.active };
+      commit(() => db.saveMember(next), `${m.name} 구성원을 ${next.active ? "활성화" : "비활성화"}했습니다.`);
     });
   }
 
-  async function addMember(){
+  function addMember(){
     const name = $("#memberName").value.trim();
     if (!name) return toast("이름을 입력해 주세요.", "bad");
     if (data.members.some(m => m.name === name)) return toast("같은 이름의 구성원이 이미 있습니다.", "bad");
-    data.members.push({ id: uid("P"), name,
+    const m = { id: uid("P"), name,
       initialKRW: Number($("#memberKRW").value || 0),
-      initialCNY: Number($("#memberCNY").value || 0), active: true });
-    if (await persist()) { $("#memberName").value = ""; toast(`${name} 구성원을 추가했습니다.`); }
+      initialCNY: Number($("#memberCNY").value || 0),
+      active: true, sortOrder: data.members.length };
+    commit(() => db.saveMember(m), `${name} 구성원을 추가했습니다.`)
+      .then(ok => { if (ok) $("#memberName").value = ""; });
   }
 
-  /* ── PIN (편의 장치) ── */
-  function hashPin(v){
-    let h = 0x811c9dc5; const s = "guilin::" + v;
-    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
-    return h.toString(16).padStart(8, "0");
-  }
-  const pinOK = v => data.pinHash ? hashPin(v) === data.pinHash : v === DEFAULT_PIN;
-
-  async function changePin(){
-    const cur = $("#curPin").value.trim(), a = $("#newPin").value.trim(), b = $("#newPin2").value.trim();
-    if (!pinOK(cur)) return toast("현재 PIN이 올바르지 않습니다.", "bad");
-    if (a.length < 4) return toast("새 PIN은 4자리 이상으로 입력해 주세요.", "bad");
-    if (a !== b) return toast("새 PIN과 확인 PIN이 다릅니다.", "bad");
-    data.pinHash = hashPin(a);
-    if (await persist()) {
-      $("#curPin").value = $("#newPin").value = $("#newPin2").value = "";
-      toast("관리자 PIN을 변경했습니다.");
-    }
+  /* ── 로그인 / 비밀번호 ── */
+  async function login(){
+    const pw = $("#adminPin").value;
+    if (!pw) return toast("비밀번호를 입력해 주세요.", "bad");
+    try {
+      await auth.login(pw);
+      $("#adminPin").value = "";
+      adminDialog.close();
+      $("#adminZone").scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (err) { toast(reason(err), "bad"); }
   }
 
-  function login(){
-    if (!pinOK($("#adminPin").value)) return toast("PIN이 올바르지 않습니다.", "bad");
-    isAdmin = true;
-    store.set("sessionStorage", SS_ADMIN, "1");
-    adminDialog.close();
-    $("#adminPin").value = "";
-    syncAdminUI();
-    $("#adminZone").scrollIntoView({ behavior: "smooth", block: "start" });
+  async function changePassword(){
+    const a = $("#newPin").value.trim(), b = $("#newPin2").value.trim();
+    if (a.length < 6) return toast("새 비밀번호는 6자 이상으로 정해주세요.", "bad");
+    if (a !== b)      return toast("새 비밀번호와 확인 값이 다릅니다.", "bad");
+    try {
+      await auth.changePassword(a);
+      $("#newPin").value = $("#newPin2").value = "";
+      toast("관리자 비밀번호를 변경했습니다.");
+    } catch (err) { toast(reason(err), "bad"); }
   }
 
   /* ── CSV ── */
-  function buildCSV(){
+  function exportCSV(){
     const rows = [["날짜", "구분", "내용", "통화", "이름", "금액", "메모"]];
     sorted().slice().reverse().forEach(g => {
       Object.entries(g.entries || {}).forEach(([mid, amt]) => {
@@ -1172,23 +1195,10 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
                    byId(mid)?.name || mid, amt, g.memo || ""]);
       });
     });
-    return "﻿" + rows.map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\r\n");
-  }
-
-  async function exportCSV(){
-    const csv = buildCSV();
-    const filename = `guilin-expense-${todayISO()}.csv`;
-    if (HOSTED) {
-      const dl = await claude.use("downloads");
-      if (dl) {
-        try { await dl.save({ filename, data: csv }); toast("CSV를 내려받았습니다."); }
-        catch (e) { if (e?.code !== "declined") toast("내려받지 못했습니다: " + (e?.message || ""), "bad"); }
-        return;
-      }
-    }
+    const csv = "﻿" + rows.map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\r\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    a.download = filename;
+    a.download = `guilin-expense-${todayISO()}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -1200,7 +1210,7 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     el.textContent = msg;
     el.className = "toast show" + (kind === "bad" ? " bad" : "");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.className = "toast" + (kind === "bad" ? " bad" : ""); }, 3200);
+    toastTimer = setTimeout(() => { el.className = "toast" + (kind === "bad" ? " bad" : ""); }, 3400);
   }
 
   function renderAll(){
@@ -1208,34 +1218,61 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     renderManage(); renderMembers(); renderParticipants(); syncAdminUI();
   }
 
-  /* ── 이벤트 ── */
-  $("#adminBtn").onclick = () => adminDialog.showModal();
-  $("#loginBtn").onclick = login;
+  /* ══════════════════════════════════════════════════════════
+     새로고침 · 실시간 구독
+     ══════════════════════════════════════════════════════════ */
+  async function refresh(){
+    try {
+      data = await db.loadAll();
+      renderAll();
+      setStatus(isAdmin ? "admin" : "online");
+      return true;
+    } catch (err) {
+      setStatus("offline", reason(err));
+      return false;
+    }
+  }
+
+  function watchServer(){
+    sb.channel("guilinpay")
+      .on("postgres_changes", { event: "*", schema: "public" }, () => { if (!busy) refresh(); })
+      .subscribe();
+  }
+
+  function showSetupNotice(){
+    $("#setupNotice").classList.remove("hide");
+    $("#adminBtn").classList.add("hide");
+    setStatus("setup");
+    $("#ledger").innerHTML = `<div class="sheet"><div class="empty">Supabase 연결 정보를 입력하면 장부가 표시됩니다.</div></div>`;
+    $("#totals").innerHTML = "";
+    $("#recentBody").innerHTML = `<tr><td colspan="5" class="empty">—</td></tr>`;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     이벤트
+     ══════════════════════════════════════════════════════════ */
+  $("#adminBtn").onclick    = () => adminDialog.showModal();
+  $("#loginBtn").onclick    = login;
   $("#adminPin").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
-  $("#logoutBtn").onclick = () => { isAdmin = false; store.del("sessionStorage", SS_ADMIN); syncAdminUI(); };
-  $("#showAllBtn").onclick = () => allDialog.showModal();
-  $("#exportBtn").onclick = exportCSV;
+  $("#logoutBtn").onclick   = () => auth.logout();
+  $("#showAllBtn").onclick  = () => allDialog.showModal();
+  $("#exportBtn").onclick   = exportCSV;
+  $("#refreshBtn").onclick  = () => refresh().then(ok => ok && toast("최신 내역을 불러왔습니다."));
   $("#saveExpenseBtn").onclick = saveExpense;
-  $("#saveAddBtn").onclick = saveAdd;
-  $("#addMemberBtn").onclick = addMember;
-  $("#changePinBtn").onclick = changePin;
-  $("#cancelEditBtn").onclick = clearExpenseForm;
-  $("#closeAdminDlg").onclick = () => adminDialog.close();
+  $("#saveAddBtn").onclick     = saveAdd;
+  $("#addMemberBtn").onclick   = addMember;
+  $("#changePinBtn").onclick   = changePassword;
+  $("#cancelEditBtn").onclick  = clearExpenseForm;
+  $("#closeAdminDlg").onclick  = () => adminDialog.close();
   $("#closeDetailDlg").onclick = () => detailDialog.close();
-  $("#closeAllDlg").onclick = () => allDialog.close();
+  $("#closeAllDlg").onclick    = () => allDialog.close();
   $("#closePeopleDlg").onclick = () => peopleDialog.close();
-  $("#resetDataBtn").onclick = async () => {
-    if (!confirm("지금까지의 변경을 모두 지우고 최초 데이터로 되돌릴까요?")) return;
-    data = normalize(JSON.parse(new DOMParser()
-      .parseFromString(PRISTINE, "text/html").getElementById("appState").textContent));
-    if (await persist()) { clearExpenseForm(); toast("최초 데이터로 되돌렸습니다."); }
-  };
   $("#selectAllExp").onclick = () => setAll("#expParticipants", true);
   $("#clearAllExp").onclick  = () => setAll("#expParticipants", false);
   $("#selectAllAdd").onclick = () => setAll("#addParticipants", true);
   $("#clearAllAdd").onclick  = () => setAll("#addParticipants", false);
-  $("#expMode").onchange = modeChanged;
-  $("#expAmount").oninput = updatePreview;
+  $("#expMode").onchange     = modeChanged;
+  $("#expAmount").oninput    = updatePreview;
   $("#expCurrency").onchange = updatePreview;
   $$(".tab").forEach(t => t.onclick = () => {
     $$(".tab").forEach(x => x.classList.remove("active"));
@@ -1244,12 +1281,24 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     $("#" + t.dataset.tab).classList.add("active");
   });
 
-  /* ── 시작 ── */
+  /* ══════════════════════════════════════════════════════════
+     시작
+     ══════════════════════════════════════════════════════════ */
   $("#expDate").value = todayISO();
   $("#addDate").value = todayISO();
-  renderAll();
   modeChanged();
-  setSync(syncState);
-  connect();
+
+  if (!READY) {
+    showSetupNotice();
+  } else {
+    setStatus("connecting");
+    sb.auth.onAuthStateChange((_evt, session) => {
+      isAdmin = !!session;
+      syncAdminUI();
+      setStatus(isAdmin ? "admin" : "online");
+    });
+    sb.auth.getSession().then(({ data: s }) => { isAdmin = !!s.session; syncAdminUI(); });
+    refresh().then(ok => { if (ok) watchServer(); });
+  }
 })();
 </script>
