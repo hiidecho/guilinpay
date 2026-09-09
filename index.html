@@ -480,7 +480,7 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     </div>
     <div class="sheet"><div class="scroll">
       <table>
-        <thead><tr><th>요청일</th><th>요청자</th><th>구분</th><th>내용</th><th>통화</th><th style="text-align:right">금액</th><th>인원</th></tr></thead>
+        <thead><tr><th>요청일</th><th>요청자</th><th>구분</th><th>내용</th><th style="text-align:right">금액</th><th>인원</th></tr></thead>
         <tbody id="pendingBody"></tbody>
       </table>
     </div></div>
@@ -714,7 +714,7 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
         <div class="panel-head"><h3>승인 대기 요청</h3><span class="hint" id="reqPaneHint"></span></div>
         <div class="sheet"><div class="scroll">
           <table>
-            <thead><tr><th>요청일</th><th>요청자</th><th>구분</th><th>내용</th><th>통화</th><th style="text-align:right">금액</th><th>인원</th><th>처리</th></tr></thead>
+            <thead><tr><th>요청일</th><th>요청자</th><th>구분</th><th>내용</th><th style="text-align:right">금액</th><th>인원</th><th>처리</th></tr></thead>
             <tbody id="reqBody"></tbody>
           </table>
         </div></div>
@@ -1428,11 +1428,10 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
         <td><b>${esc(r.requester)}</b></td>
         <td>${r.kind === "ADD" ? '<span class="chip cny">추가</span>' : '<span class="chip krw">사용</span>'}</td>
         <td>${esc(r.title)}${r.memo ? `<span class="memo">${esc(r.memo)}</span>` : ""}</td>
-        <td><span class="chip ${CUR[r.currency].chip}">${CUR[r.currency].short}</span></td>
         <td class="num">${money(r.currency, tot)}</td>
         <td>${ids.length}명<span class="memo">${esc(names)}</span></td>
       </tr>`;
-    }).join("") : `<tr><td colspan="7" class="empty">대기 중인 요청이 없습니다.</td></tr>`;
+    }).join("") : `<tr><td colspan="6" class="empty">대기 중인 요청이 없습니다.</td></tr>`;
 
     const all = data.requests;
     $("#reqBody").innerHTML = all.length ? all.map(r => {
@@ -1443,14 +1442,13 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
         <td><b>${esc(r.requester)}</b></td>
         <td>${r.kind === "ADD" ? '<span class="chip cny">추가</span>' : '<span class="chip krw">사용</span>'}</td>
         <td>${esc(r.title)}${r.memo ? `<span class="memo">${esc(r.memo)}</span>` : ""}</td>
-        <td><span class="chip ${CUR[r.currency].chip}">${CUR[r.currency].short}</span></td>
         <td class="num">${money(r.currency, tot)}</td>
         <td>${ids.length}명<span class="memo">${esc(names)}</span></td>
         <td style="white-space:nowrap">${r.status === "PENDING"
           ? `<button class="btn sm" data-approve="${esc(r.id)}">승인</button> <button class="btn sm warn" data-reject="${esc(r.id)}">거절</button>`
           : `<span class="req-status ${st[0]}">${st[1]}</span>`}</td>
       </tr>`;
-    }).join("") : `<tr><td colspan="8" class="empty">요청이 없습니다.</td></tr>`;
+    }).join("") : `<tr><td colspan="7" class="empty">요청이 없습니다.</td></tr>`;
 
     $$("#reqBody [data-approve]").forEach(b => b.onclick = () => {
       const r = data.requests.find(x => x.id === b.dataset.approve);
