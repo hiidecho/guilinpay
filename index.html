@@ -299,6 +299,23 @@ td.date{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);white-spac
   margin-left:6px;padding:0 5px;border-radius:999px;
   background:var(--alert);color:#fff;font-size:10.5px;font-weight:700;line-height:1;
 }
+tr.row-open{cursor:pointer}
+tr.row-open:hover{background:var(--surface-2)}
+tr.row-open td:first-child{position:relative}
+.req-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:16px}
+.req-meta > div{
+  display:flex;flex-direction:column;gap:3px;padding:11px 13px;
+  border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-3);
+}
+.req-meta .k{font-size:11px;color:var(--muted);letter-spacing:.04em}
+.req-meta b{font-size:14px;font-weight:600}
+.req-meta .wide{grid-column:1/-1}
+.req-memo{
+  padding:11px 13px;border:1px dashed var(--line-2);border-radius:var(--r-md);
+  background:var(--surface-3);color:var(--ink-2);font-size:13px;margin-bottom:16px;
+}
+.req-actions{display:flex;gap:8px;margin-top:18px}
+.req-actions .btn{flex:1;padding:11px}
 .req-status{font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;white-space:nowrap}
 .req-status.pending {background:var(--yuan-soft);color:var(--yuan);border:1px solid var(--yuan-line)}
 .req-status.approved{background:var(--jade-soft);color:var(--jade-2);border:1px solid var(--jade-line)}
@@ -480,7 +497,7 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     </div>
     <div class="sheet"><div class="scroll">
       <table>
-        <thead><tr><th>요청일</th><th>요청자</th><th>구분</th><th>내용</th><th style="text-align:right">금액</th><th>인원</th></tr></thead>
+        <thead><tr><th>날짜</th><th>요청자</th><th>구분</th><th style="text-align:right">금액</th><th>인원</th></tr></thead>
         <tbody id="pendingBody"></tbody>
       </table>
     </div></div>
@@ -714,7 +731,7 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
         <div class="panel-head"><h3>승인 대기 요청</h3><span class="hint" id="reqPaneHint"></span></div>
         <div class="sheet"><div class="scroll">
           <table>
-            <thead><tr><th>요청일</th><th>요청자</th><th>구분</th><th>내용</th><th style="text-align:right">금액</th><th>인원</th><th>처리</th></tr></thead>
+            <thead><tr><th>날짜</th><th>요청자</th><th>구분</th><th style="text-align:right">금액</th><th>인원</th><th>처리</th></tr></thead>
             <tbody id="reqBody"></tbody>
           </table>
         </div></div>
@@ -790,6 +807,16 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
       <button class="x" id="closePeopleDlg" aria-label="닫기">&times;</button>
     </div>
     <div class="modal-scroll"><div class="plist" id="peopleList"></div></div>
+  </div>
+</dialog>
+
+<dialog id="reqDialog">
+  <div class="modal">
+    <div class="modal-head">
+      <div><h3 id="reqDlgTitle">요청 상세</h3><div class="sub" id="reqDlgSub"></div></div>
+      <button class="x" id="closeReqDetail" aria-label="닫기">&times;</button>
+    </div>
+    <div id="reqDlgBody"></div>
   </div>
 </dialog>
 
@@ -1414,6 +1441,25 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     return { ids, tot, names };
   }
 
+  const KIND = { EXPENSE: ["krw", "사용"], ADD: ["cny", "추가"] };
+  const STATUS = { PENDING: ["pending", "승인 대기"], APPROVED: ["approved", "승인됨"], REJECTED: ["rejected", "거절됨"] };
+
+  /* 표에는 훑어볼 값만 두고, 내용·메모·인원별 금액은 상세 모달에서 보여준다 */
+  function reqRow(r, withActions){
+    const { ids, tot } = reqSummary(r);
+    const [chip, label] = KIND[r.kind];
+    return `<tr class="row-open" data-req="${esc(r.id)}">
+      <td class="date">${esc(dateShort(r.date))}</td>
+      <td><b>${esc(r.requester)}</b></td>
+      <td><span class="chip ${chip}">${label}</span></td>
+      <td class="num">${money(r.currency, tot)}</td>
+      <td>${ids.length}명</td>
+      ${withActions ? `<td data-noopen style="white-space:nowrap">${r.status === "PENDING"
+        ? `<button class="btn sm" data-approve="${esc(r.id)}">승인</button> <button class="btn sm warn" data-reject="${esc(r.id)}">거절</button>`
+        : `<span class="req-status ${STATUS[r.status][0]}">${STATUS[r.status][1]}</span>`}</td>` : ""}
+    </tr>`;
+  }
+
   function renderPending(){
     const rows = pending();
     $("#pendingSec").classList.toggle("hide", !rows.length);
@@ -1421,46 +1467,72 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     $("#reqBadge").textContent = rows.length;
     $("#reqPaneHint").textContent = rows.length ? `${rows.length}건 대기 중` : "대기 중인 요청이 없습니다";
 
-    $("#pendingBody").innerHTML = rows.length ? rows.map(r => {
-      const { ids, tot, names } = reqSummary(r);
-      return `<tr>
-        <td class="date">${esc(dateShort(r.date))}</td>
-        <td><b>${esc(r.requester)}</b></td>
-        <td>${r.kind === "ADD" ? '<span class="chip cny">추가</span>' : '<span class="chip krw">사용</span>'}</td>
-        <td>${esc(r.title)}${r.memo ? `<span class="memo">${esc(r.memo)}</span>` : ""}</td>
-        <td class="num">${money(r.currency, tot)}</td>
-        <td>${ids.length}명<span class="memo">${esc(names)}</span></td>
-      </tr>`;
-    }).join("") : `<tr><td colspan="6" class="empty">대기 중인 요청이 없습니다.</td></tr>`;
+    $("#pendingBody").innerHTML = rows.length
+      ? rows.map(r => reqRow(r, false)).join("")
+      : `<tr><td colspan="5" class="empty">대기 중인 요청이 없습니다.</td></tr>`;
 
-    const all = data.requests;
-    $("#reqBody").innerHTML = all.length ? all.map(r => {
-      const { ids, tot, names } = reqSummary(r);
-      const st = { PENDING: ["pending","대기"], APPROVED: ["approved","승인됨"], REJECTED: ["rejected","거절됨"] }[r.status];
-      return `<tr>
-        <td class="date">${esc(dateShort(r.date))}</td>
-        <td><b>${esc(r.requester)}</b></td>
-        <td>${r.kind === "ADD" ? '<span class="chip cny">추가</span>' : '<span class="chip krw">사용</span>'}</td>
-        <td>${esc(r.title)}${r.memo ? `<span class="memo">${esc(r.memo)}</span>` : ""}</td>
-        <td class="num">${money(r.currency, tot)}</td>
-        <td>${ids.length}명<span class="memo">${esc(names)}</span></td>
-        <td style="white-space:nowrap">${r.status === "PENDING"
-          ? `<button class="btn sm" data-approve="${esc(r.id)}">승인</button> <button class="btn sm warn" data-reject="${esc(r.id)}">거절</button>`
-          : `<span class="req-status ${st[0]}">${st[1]}</span>`}</td>
-      </tr>`;
-    }).join("") : `<tr><td colspan="7" class="empty">요청이 없습니다.</td></tr>`;
+    $("#reqBody").innerHTML = data.requests.length
+      ? data.requests.map(r => reqRow(r, true)).join("")
+      : `<tr><td colspan="6" class="empty">요청이 없습니다.</td></tr>`;
 
-    $$("#reqBody [data-approve]").forEach(b => b.onclick = () => {
-      const r = data.requests.find(x => x.id === b.dataset.approve);
-      const { tot } = reqSummary(r);
-      if (!confirm(`"${r.title}" ${fmt[r.currency](tot)} 요청을 승인할까요?\n승인하면 장부에 바로 반영됩니다.`)) return;
-      commit(() => db.approveRequest(r.id), "요청을 승인해 장부에 반영했습니다.");
+    /* 행을 누르면 상세. 단 처리 버튼이 있는 칸은 제외한다. */
+    $$("tr.row-open").forEach(tr => tr.onclick = e => {
+      if (e.target.closest("[data-noopen]")) return;
+      openRequest(tr.dataset.req);
     });
-    $$("#reqBody [data-reject]").forEach(b => b.onclick = () => {
-      const r = data.requests.find(x => x.id === b.dataset.reject);
-      if (!confirm(`"${r.title}" 요청을 거절할까요?`)) return;
-      commit(() => db.rejectRequest(r.id), "요청을 거절했습니다.");
-    });
+    $$("#reqBody [data-approve]").forEach(b => b.onclick = () => approve(b.dataset.approve));
+    $$("#reqBody [data-reject]").forEach(b => b.onclick = () => reject(b.dataset.reject));
+  }
+
+  function approve(id){
+    const r = data.requests.find(x => x.id === id); if (!r) return;
+    const { tot } = reqSummary(r);
+    if (!confirm(`"${r.title}" ${fmt[r.currency](tot)} 요청을 승인할까요?\n승인하면 장부에 바로 반영됩니다.`)) return;
+    reqDialog.close();
+    commit(() => db.approveRequest(id), "요청을 승인해 장부에 반영했습니다.");
+  }
+
+  function reject(id){
+    const r = data.requests.find(x => x.id === id); if (!r) return;
+    if (!confirm(`"${r.title}" 요청을 거절할까요?`)) return;
+    reqDialog.close();
+    commit(() => db.rejectRequest(id), "요청을 거절했습니다.");
+  }
+
+  function openRequest(id){
+    const r = data.requests.find(x => x.id === id); if (!r) return;
+    const { ids, tot } = reqSummary(r);
+    const [chip, label] = KIND[r.kind];
+    const [scls, slabel] = STATUS[r.status];
+    const inflow = r.kind === "ADD";
+
+    $("#reqDlgTitle").textContent = r.title;
+    $("#reqDlgSub").innerHTML = `<span class="req-status ${scls}">${slabel}</span>`;
+    $("#reqDlgBody").innerHTML = `
+      <div class="req-meta">
+        <div class="wide"><span class="k">내용</span><b>${esc(r.title)}</b></div>
+        <div><span class="k">날짜</span><b>${esc(r.date)}</b></div>
+        <div><span class="k">구분</span><b><span class="chip ${chip}">${label}</span></b></div>
+        <div><span class="k">요청자</span><b>${esc(r.requester)}</b></div>
+        <div><span class="k">총 반영금액</span><b>${money(r.currency, tot)}</b></div>
+      </div>
+      ${r.memo ? `<div class="req-memo">${esc(r.memo)}</div>` : ""}
+      <div class="plist">
+        ${ids.map(mid => `<div class="pitem">
+          <span class="n">${esc(byId(mid)?.name || mid)}</span>
+          <span class="a ${inflow ? "in" : "out"}">${inflow ? "+" : "−"}${money(r.currency, r.entries[mid])}</span>
+        </div>`).join("")}
+      </div>
+      ${isAdmin && r.status === "PENDING" ? `<div class="req-actions">
+        <button class="btn primary" id="dlgApprove">승인</button>
+        <button class="btn warn" id="dlgReject">거절</button>
+      </div>` : ""}`;
+
+    if (isAdmin && r.status === "PENDING") {
+      $("#dlgApprove").onclick = () => approve(r.id);
+      $("#dlgReject").onclick  = () => reject(r.id);
+    }
+    reqDialog.showModal();
   }
 
   function renderManage(){
@@ -1673,6 +1745,7 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
   $("#closeDetailDlg").onclick = () => detailDialog.close();
   $("#closeAllDlg").onclick    = () => allDialog.close();
   $("#closePeopleDlg").onclick = () => peopleDialog.close();
+  $("#closeReqDetail").onclick = () => reqDialog.close();
   $("#selectAllExp").onclick = () => setAll("exp", true);
   $("#clearAllExp").onclick  = () => setAll("exp", false);
   $("#selectAllAdd").onclick = () => setAll("add", true);
