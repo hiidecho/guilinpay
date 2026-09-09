@@ -22,8 +22,8 @@ insert into members (id, name, initial_krw, initial_cny, active, sort_order) val
 insert into transactions (id, date, type, title, currency, mode, memo) values
   ('G001', '2026-09-07', 'EXPENSE', '롯데리아', 'KRW', 'CUSTOM', ''),
   ('G002', '2026-09-07', 'EXPENSE', '노포', 'KRW', 'SAME', ''),
-  ('G003', '2026-09-07', 'EXPENSE', '피자', 'CNY', 'SAME', ''),
-  ('G004', '2026-09-07', 'EXPENSE', '커피', 'CNY', 'SAME', ''),
+  ('G003', '2026-09-06', 'EXPENSE', '피자', 'CNY', 'SAME', ''),
+  ('G004', '2026-09-06', 'EXPENSE', '커피', 'CNY', 'SAME', ''),
   ('G005', '2026-09-07', 'EXPENSE', '맥주·백주 저녁', 'CNY', 'SAME', '7일 저녁'),
   ('G006', '2026-09-07', 'EXPENSE', '점심', 'CNY', 'CUSTOM', '송기정 기록'),
   ('G007', '2026-09-07', 'EXPENSE', '커피', 'CNY', 'SAME', ''),
