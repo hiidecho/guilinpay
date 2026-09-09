@@ -31,7 +31,7 @@ insert into transactions (id, date, type, title, currency, mode, memo) values
   ('G009', '2026-09-08', 'EXPENSE', '8일 저녁', 'CNY', 'SAME', ''),
   ('G010', '2026-09-09', 'EXPENSE', '9일 점심', 'CNY', 'CUSTOM', ''),
   ('G011', '2026-09-09', 'EXPENSE', '커피', 'CNY', 'CUSTOM', '안창은'),
-  ('G012', '2026-09-09', 'EXPENSE', '햄버거+커피', 'CNY', 'CUSTOM', '김지훈');
+  ('G012', '2026-09-05', 'EXPENSE', '햄버거+커피', 'CNY', 'CUSTOM', '김지훈');
 
 insert into transaction_entries (transaction_id, member_id, amount) values
   ('G001', 'P01', 9500),
