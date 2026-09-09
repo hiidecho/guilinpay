@@ -1,0 +1,40 @@
+# 구형 pages-build-deployment 의 deploy 단계가 계속 멈춰서 직접 배포한다.
+# Pages 설정에서 Source 를 "GitHub Actions" 로 바꿔야 동작한다.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:      # Actions 탭에서 손으로도 실행할 수 있게
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 밀린 실행이 큐를 잡고 있지 않도록 항상 최신 것만 남긴다
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Pages 설정 확인
+        uses: actions/configure-pages@v5
+
+      - name: 사이트 파일 업로드
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: 배포
+        id: deployment
+        uses: actions/deploy-pages@v4
