@@ -96,6 +96,8 @@ button{cursor:pointer}
   font-family:var(--f-display);font-weight:700;font-size:clamp(27px,4vw,38px);
   line-height:1.15;margin:0;letter-spacing:-.015em;text-wrap:balance;
 }
+.title-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.title-row .btn{padding:9px 17px;font-size:14px;flex:none}
 .masthead .dek{color:var(--muted);font-size:13.5px;margin-top:8px;max-width:52ch}
 .mast-side{display:flex;flex-direction:column;align-items:flex-end;gap:11px}
 .toolbar{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
@@ -414,7 +416,10 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
   <header class="masthead">
     <div>
       <div class="eyebrow"><span class="rule"></span><span>한서대학교 교수파견</span></div>
-      <h1>광서사범대 경비 장부</h1>
+      <div class="title-row">
+        <h1>광서사범대 경비 장부</h1>
+        <button class="btn primary hide" id="requestBtn">등록 요청</button>
+      </div>
       <p class="dek" id="dek">원화(KRW)와 위안(CNY)을 서로 섞지 않고 각각의 지갑으로 관리합니다. 이름을 누르면 개인별 상세 내역이 열립니다.</p>
     </div>
     <div class="mast-side">
@@ -423,7 +428,6 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
         <button class="btn" id="refreshBtn">새로고침</button>
         <button class="btn" id="exportBtn">CSV 내려받기</button>
         <button class="btn hide" id="backBtn">장부 보기</button>
-        <button class="btn primary hide" id="requestBtn">등록 요청</button>
         <button class="btn" id="adminBtn">관리자</button>
         <button class="btn primary hide" id="consoleBtn">관리자 콘솔</button>
         <button class="btn warn hide" id="logoutBtn">관리자 종료</button>
