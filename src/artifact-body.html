@@ -242,6 +242,17 @@ td.date{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);white-spac
 .out{color:var(--alert)}
 .in{color:var(--jade)}
 .empty{padding:30px 16px;text-align:center;color:var(--muted);font-size:13.5px}
+/* 개인 상세는 3칸뿐 — 화면 폭에 맞춰 접고, 내용만 남는 폭을 쓰게 한다 */
+.tbl-detail{min-width:0;table-layout:fixed}
+.tbl-detail th,.tbl-detail td{padding:10px 11px}
+.tbl-detail th:first-child,.tbl-detail td:first-child{width:58px}
+.tbl-detail th:last-child,.tbl-detail td:last-child{width:98px}
+.tbl-detail td:nth-child(2){overflow-wrap:anywhere;word-break:break-word;line-height:1.4}
+@media(max-width:420px){
+  .tbl-detail th,.tbl-detail td{padding:9px 8px;font-size:13px}
+  .tbl-detail th:first-child,.tbl-detail td:first-child{width:50px}
+  .tbl-detail th:last-child,.tbl-detail td:last-child{width:88px}
+}
 .pill-people{
   border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);
   border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;white-space:nowrap;
@@ -944,7 +955,7 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
         <div class="mini cny"><div class="k">위안 잔액</div><div class="v">${money("CNY", balance(mid,"CNY"))}</div></div>
       </div>
       <div class="modal-scroll"><div class="sheet"><div class="scroll">
-        <table>
+        <table class="tbl-detail">
           <thead><tr><th>날짜</th><th>내용</th><th style="text-align:right">지출</th></tr></thead>
           <tbody>${rows.length ? rows.map(g => {
             const amt = amountOf(g, mid), inflow = g.type === "ADD";
