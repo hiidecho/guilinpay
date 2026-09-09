@@ -29,6 +29,7 @@ Supabase      (PostgreSQL + Auth + 실시간)
 | `deploy.sh` | 재빌드 → 커밋 → 푸시 한 번에 |
 | `supabase/README.md` | **Supabase 연결 준비 순서** |
 | `supabase/schema.sql` | 표·권한(RLS)·실시간 설정 |
+| `supabase/requests.sql` | 요청/승인 표와 승인 함수 |
 | `supabase/seed.sql` | 현재 데이터 초기 등록 |
 
 `index.html` 을 직접 고치면 다음 빌드 때 덮어써집니다.
@@ -38,7 +39,7 @@ Supabase      (PostgreSQL + Auth + 실시간)
 `supabase/README.md` 를 따라가세요. 요약하면:
 
 1. Supabase 프로젝트 생성
-2. `schema.sql` → `seed.sql` 순서로 SQL Editor에서 실행
+2. `schema.sql` → `requests.sql` → `seed.sql` 순서로 SQL Editor에서 실행
 3. Authentication에서 관리자 계정 생성 (**Auto Confirm User** 켜기)
 4. 신규 가입 막기
 5. Project URL과 `anon` 키를 `src/artifact-body.html` 상단에 입력
@@ -64,10 +65,15 @@ cd "/Users/hiide/Documents/정리/광서사범대/guilin-expense-site" && ./depl
 
 ## 권한
 
-| | 조회 | 편집 |
-|---|---|---|
-| 로그인 안 한 사람 | O | X |
-| 관리자 계정 | O | O |
+| | 조회 | 등록 요청 | 승인·편집 |
+|---|---|---|---|
+| 로그인 안 한 사람 | O | O | X |
+| 관리자 계정 | O | O | O |
+
+교수님 누구나 **등록 요청**을 보낼 수 있고, 관리자가 **승인**하면 그때 장부에 반영됩니다.
+승인 전까지는 잔액이 바뀌지 않으며, 대기 중인 요청은 장부 화면 상단에 표시됩니다.
+승인은 거래 생성과 상태 변경을 한 번에 처리하는 DB 함수(`approve_request`)로 실행되어,
+중간에 실패해도 장부가 어긋나지 않습니다.
 
 편집 권한은 **DB의 RLS 정책**이 지정된 관리자 이메일 하나만 허용하도록 막습니다.
 화면의 잠금은 편의일 뿐, 실제 경계는 서버에 있습니다.

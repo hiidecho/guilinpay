@@ -44,14 +44,15 @@ if not (a and b and c):
     raise SystemExit("설정 자리를 찾지 못했습니다 (URL:%d KEY:%d EMAIL:%d)" % (a, b, c))
 io.open(src, "w", encoding="utf-8").write(s)
 
-# schema.sql 의 관리자 이메일도 함께 맞춘다 — 다르면 편집이 거부된다
-sp = "supabase/schema.sql"
-if os.path.exists(sp):
+# SQL 쪽 관리자 이메일도 함께 맞춘다 — 다르면 편집·승인이 거부된다
+for sp in ("supabase/schema.sql", "supabase/requests.sql"):
+    if not os.path.exists(sp):
+        continue
     q = io.open(sp, encoding="utf-8").read()
-    q2, n = re.subn(r"'[^']*@[^']*'(\s*\))", lambda m: "'"+email+"'"+m.group(1), q)
+    q2, n = re.subn(r"'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'", "'"+email+"'", q)
     if n:
         io.open(sp, "w", encoding="utf-8").write(q2)
-        print("  schema.sql 관리자 이메일 %d곳도 함께 맞췄습니다." % n)
+        print("  %s 관리자 이메일 %d곳도 함께 맞췄습니다." % (sp, n))
 PY
 [ $? -ne 0 ] && exit 1
 

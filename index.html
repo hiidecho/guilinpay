@@ -277,6 +277,16 @@ td.date{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);white-spac
 }
 .admin-back:hover{border-color:var(--jade);color:var(--jade)}
 .admin-back .arrow{font-size:14px;line-height:1}
+.tag.req{background:var(--yuan-soft);color:var(--yuan);border-color:var(--yuan-line)}
+.tab-badge{
+  display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;
+  margin-left:6px;padding:0 5px;border-radius:999px;
+  background:var(--alert);color:#fff;font-size:10.5px;font-weight:700;line-height:1;
+}
+.req-status{font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.req-status.pending {background:var(--yuan-soft);color:var(--yuan);border:1px solid var(--yuan-line)}
+.req-status.approved{background:var(--jade-soft);color:var(--jade-2);border:1px solid var(--jade-line)}
+.req-status.rejected{background:var(--alert-soft);color:var(--alert);border:1px solid var(--alert-line)}
 .admin-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px}
 .admin-bar h2{font-family:var(--f-display);font-size:19px;margin:0;font-weight:600}
 .tag{
@@ -421,7 +431,8 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
         <button class="btn" id="refreshBtn">새로고침</button>
         <button class="btn" id="exportBtn">CSV 내려받기</button>
         <button class="btn hide" id="backBtn">장부 보기</button>
-        <button class="btn primary" id="adminBtn">관리자</button>
+        <button class="btn primary hide" id="requestBtn">등록 요청</button>
+        <button class="btn" id="adminBtn">관리자</button>
         <button class="btn primary hide" id="consoleBtn">관리자 콘솔</button>
         <button class="btn warn hide" id="logoutBtn">관리자 종료</button>
       </div>
@@ -442,6 +453,19 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
       <span class="hint" id="updatedHint"></span>
     </div>
     <div class="totals" id="totals"></div>
+  </section>
+
+  <section class="sec hide" id="pendingSec">
+    <div class="sec-head">
+      <h2>승인 대기</h2>
+      <span class="hint">관리자가 승인하면 장부에 반영됩니다</span>
+    </div>
+    <div class="sheet"><div class="scroll">
+      <table>
+        <thead><tr><th>요청일</th><th>요청자</th><th>구분</th><th>내용</th><th>통화</th><th style="text-align:right">금액</th><th>인원</th></tr></thead>
+        <tbody id="pendingBody"></tbody>
+      </table>
+    </div></div>
   </section>
 
   <section class="sec">
@@ -467,6 +491,91 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
 
   </div><!-- /viewLedger -->
 
+
+  <section class="admin" id="viewRequest">
+    <button class="admin-back" type="button" id="reqBack"><span class="arrow">&lsaquo;</span><span>장부로 돌아가기</span></button>
+    <div class="admin-bar">
+      <h2>등록 요청</h2>
+      <span class="tag req">관리자 승인 후 반영</span>
+    </div>
+    <div class="note">
+      관리자가 아니어도 등록을 요청할 수 있습니다. 보내신 내용은 <b>승인되기 전까지 잔액에 반영되지 않습니다.</b>
+    </div>
+    <div class="panel" style="margin-bottom:14px">
+      <div class="f"><label for="reqRequester">요청자</label>
+        <input id="reqRequester" placeholder="본인 이름 (예: 안창은)" autocomplete="name"></div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="rPaneExpense">사용금액 등록</button>
+      <button class="tab" data-tab="rPaneAdd">금액 추가</button>
+    </div>
+    <div class="pane active" id="rPaneExpense">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>사용금액 등록 요청</h3>
+        </div>
+        <div class="form">
+          <div class="f"><label for="rexpDate">날짜</label><input type="date" id="rexpDate"></div>
+          <div class="f"><label for="rexpTitle">사용내용</label><input id="rexpTitle" placeholder="예: 9일 점심, 커피, 택시"></div>
+          <div class="f"><label for="rexpCurrency">통화</label>
+            <select id="rexpCurrency"><option value="KRW">원화 KRW</option><option value="CNY">위안 CNY</option></select>
+          </div>
+          <div class="f"><label for="rexpMode">입력 방식</label>
+            <select id="rexpMode">
+              <option value="SAME">동일금액 — 선택한 사람마다 같은 금액</option>
+              <option value="SPLIT">총액 나누기 — 총액을 선택 인원으로 분할</option>
+              <option value="CUSTOM">개별금액 — 사람마다 다른 금액</option>
+            </select>
+          </div>
+          <div class="f wide" id="rexpCommonAmountField">
+            <label for="rexpAmount" id="rexpAmountLabel">1인당 금액</label>
+            <input type="number" min="0" step="0.01" id="rexpAmount" placeholder="0">
+          </div>
+          <div class="f wide">
+            <div class="row-inline">
+              <label>사용 인원</label>
+              <button class="btn sm" type="button" id="selectAllRexp">전체 선택</button>
+              <button class="btn sm" type="button" id="clearAllRexp">전체 해제</button>
+            </div>
+            <div class="people-grid" id="rexpParticipants"></div>
+          </div>
+          <div class="f wide hide" id="rexpCustomAmountsField">
+            <label>개별금액</label>
+            <div class="custom-grid" id="rexpCustomAmounts"></div>
+          </div>
+          <div class="f wide"><label for="rexpMemo">메모</label><input id="rexpMemo" placeholder="선택사항"></div>
+          <div class="f wide"><div class="preview" id="rexpPreview"></div></div>
+          <div class="f wide"><button class="btn primary" id="submitRexpBtn">승인 요청 보내기</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pane" id="rPaneAdd">
+      <div class="panel">
+        <div class="panel-head"><h3>금액 추가 요청</h3></div>
+        <div class="form">
+          <div class="f"><label for="raddDate">날짜</label><input type="date" id="raddDate"></div>
+          <div class="f"><label for="raddTitle">내용</label><input id="raddTitle" placeholder="예: 추가 환전, 추가 회비"></div>
+          <div class="f"><label for="raddCurrency">통화</label>
+            <select id="raddCurrency"><option value="KRW">원화 KRW</option><option value="CNY">위안 CNY</option></select>
+          </div>
+          <div class="f"><label for="raddAmount">1인당 추가금액</label><input type="number" min="0" step="0.01" id="raddAmount" placeholder="0"></div>
+          <div class="f wide">
+            <div class="row-inline">
+              <label>추가 대상</label>
+              <button class="btn sm" type="button" id="selectAllRadd">전체 선택</button>
+              <button class="btn sm" type="button" id="clearAllRadd">전체 해제</button>
+            </div>
+            <div class="people-grid" id="raddParticipants"></div>
+          </div>
+          <div class="f wide"><label for="raddMemo">메모</label><input id="raddMemo" placeholder="선택사항"></div>
+          <div class="f wide"><button class="btn primary" id="submitRaddBtn">승인 요청 보내기</button></div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
   <section class="admin" id="viewAdmin">
     <button class="admin-back" type="button" id="backBtn2"><span class="arrow">&lsaquo;</span><span>장부로 돌아가기</span></button>
     <div class="admin-bar">
@@ -479,6 +588,7 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
       <button class="tab" data-tab="paneAdd">금액 추가</button>
       <button class="tab" data-tab="paneManage">내역 관리</button>
       <button class="tab" data-tab="paneMember">구성원</button>
+      <button class="tab" data-tab="paneRequests">요청 승인<span class="tab-badge hide" id="reqBadge">0</span></button>
       <button class="tab" data-tab="panePin">비밀번호</button>
     </div>
 
@@ -501,8 +611,8 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
               <option value="CUSTOM">개별금액 — 사람마다 다른 금액</option>
             </select>
           </div>
-          <div class="f wide" id="commonAmountField">
-            <label for="expAmount" id="amountLabel">1인당 금액</label>
+          <div class="f wide" id="expCommonAmountField">
+            <label for="expAmount" id="expAmountLabel">1인당 금액</label>
             <input type="number" min="0" step="0.01" id="expAmount" placeholder="0">
           </div>
           <div class="f wide">
@@ -513,9 +623,9 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
             </div>
             <div class="people-grid" id="expParticipants"></div>
           </div>
-          <div class="f wide hide" id="customAmountsField">
+          <div class="f wide hide" id="expCustomAmountsField">
             <label>개별금액</label>
-            <div class="custom-grid" id="customAmounts"></div>
+            <div class="custom-grid" id="expCustomAmounts"></div>
           </div>
           <div class="f wide"><label for="expMemo">메모</label><input id="expMemo" placeholder="선택사항"></div>
           <div class="f wide"><div class="preview" id="expPreview"></div></div>
@@ -576,6 +686,18 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
           <table>
             <thead><tr><th>이름</th><th>초기 원화</th><th>초기 위안</th><th style="text-align:right">현재 원화</th><th style="text-align:right">현재 위안</th><th>관리</th></tr></thead>
             <tbody id="memberBody"></tbody>
+          </table>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="pane" id="paneRequests">
+      <div class="panel">
+        <div class="panel-head"><h3>승인 대기 요청</h3><span class="hint" id="reqPaneHint"></span></div>
+        <div class="sheet"><div class="scroll">
+          <table>
+            <thead><tr><th>요청일</th><th>요청자</th><th>구분</th><th>내용</th><th>통화</th><th style="text-align:right">금액</th><th>인원</th><th>처리</th></tr></thead>
+            <tbody id="reqBody"></tbody>
           </table>
         </div></div>
       </div>
@@ -698,7 +820,8 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
   }
 
   /* ── 상태 (서버가 원본, 이건 화면용 사본) ── */
-  let data = { members: [], groups: [] };
+  let data = { members: [], groups: [], requests: [] };
+  let requestsReady = false;   /* requests.sql 을 아직 실행하지 않았을 수도 있다 */
   let isAdmin = false;
   let editingId = null;
   let busy = false;
@@ -783,6 +906,39 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
       if (error) throw error;   /* entries 는 on delete cascade 로 함께 지워진다 */
     },
 
+    /* requests 테이블이 아직 없을 수도 있다 — 그때는 조용히 비활성화한다 */
+    async loadRequests(){
+      const r = await sb.from("requests").select("*").order("created_at", { ascending: false });
+      if (r.error) { requestsReady = false; return []; }
+      requestsReady = true;
+      return r.data.map(x => ({
+        id: x.id, kind: x.kind, date: x.date, title: x.title,
+        currency: x.currency, mode: x.mode, memo: x.memo || "",
+        entries: x.entries || {}, requester: x.requester,
+        status: x.status, createdAt: x.created_at
+      }));
+    },
+
+    async addRequest(req){
+      const { error } = await sb.from("requests").insert({
+        id: req.id, kind: req.kind, date: req.date, title: req.title,
+        currency: req.currency, mode: req.mode, memo: req.memo,
+        entries: req.entries, requester: req.requester, status: "PENDING"
+      });
+      if (error) throw error;
+    },
+
+    async approveRequest(id){
+      const { error } = await sb.rpc("approve_request", { req_id: id });
+      if (error) throw error;
+    },
+
+    async rejectRequest(id){
+      const { error } = await sb.from("requests")
+        .update({ status: "REJECTED", decided_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+    },
+
     async saveMember(m){
       const { error } = await sb.from("members").upsert({
         id: m.id, name: m.name,
@@ -817,6 +973,8 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     if (/JWT|expired/i.test(m))                        return "로그인이 만료되었습니다. 다시 로그인해 주세요.";
     if (/Failed to fetch|NetworkError|fetch/i.test(m)) return "서버에 연결하지 못했습니다. 네트워크를 확인해 주세요.";
     if (/should be at least/i.test(m))                 return "비밀번호가 너무 짧습니다. 6자 이상으로 정해주세요.";
+    if (/relation .*requests.* does not exist/i.test(m)) return "요청 기능이 아직 준비되지 않았습니다. supabase/requests.sql 을 실행해 주세요.";
+    if (/이미 처리|관리자만 승인/.test(m))              return m;
     return m || "알 수 없는 오류";
   }
 
@@ -1009,67 +1167,86 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
   /* ── 관리자 UI ── */
   /* 장부 화면과 관리자 화면은 서로 겹치지 않는 독립 화면이다.
      주소의 #admin 으로 상태를 남겨 새로고침·뒤로가기가 자연스럽게 동작한다. */
-  let view = location.hash === "#admin" ? "admin" : "ledger";
+  const HASH = { admin: "#admin", request: "#request", ledger: "" };
+  let view = location.hash === "#admin" ? "admin"
+           : location.hash === "#request" ? "request" : "ledger";
 
   function setView(next){
     view = next;
     syncAdminUI();
-    const want = (view === "admin" && isAdmin) ? "#admin" : "";
+    const want = (view === "admin" && !isAdmin) ? "" : HASH[view];
     if ((location.hash || "") !== want)
       history.replaceState(null, "", location.pathname + location.search + want);
     window.scrollTo(0, 0);
   }
 
   function syncAdminUI(){
-    const onAdmin = isAdmin && view === "admin";
+    const onAdmin   = isAdmin && view === "admin";
+    const onRequest = !onAdmin && view === "request" && requestsReady;
     $("#viewAdmin").classList.toggle("open", onAdmin);
-    $("#viewLedger").classList.toggle("hide", onAdmin);
+    $("#viewRequest").classList.toggle("open", onRequest);
+    $("#viewLedger").classList.toggle("hide", onAdmin || onRequest);
+    $("#requestBtn").classList.toggle("hide", !READY || !requestsReady || onAdmin || onRequest);
     $("#adminBtn").classList.toggle("hide", isAdmin || !READY);
     $("#consoleBtn").classList.toggle("hide", !isAdmin || onAdmin);
-    $("#backBtn").classList.toggle("hide", !onAdmin);
+    $("#backBtn").classList.toggle("hide", !(onAdmin || onRequest));
     $("#logoutBtn").classList.toggle("hide", !isAdmin);
-    $("#dek").textContent = onAdmin
-      ? "내역을 등록·수정하고 구성원을 관리합니다. 변경하면 모든 사람의 화면에 바로 반영됩니다."
+    $("#dek").textContent =
+        onAdmin   ? "내역을 등록·수정하고 구성원을 관리합니다. 변경하면 모든 사람의 화면에 바로 반영됩니다."
+      : onRequest ? "관리자에게 등록을 요청합니다. 승인되면 장부에 바로 반영됩니다."
       : "원화(KRW)와 위안(CNY)을 서로 섞지 않고 각각의 지갑으로 관리합니다. 이름을 누르면 개인별 상세 내역이 열립니다.";
   }
 
   const personBox = (m, prefix) =>
     `<label class="pcheck"><input type="checkbox" id="${prefix}_${esc(m.id)}" value="${esc(m.id)}"><span>${esc(m.name)}</span></label>`;
-  const picked = sel => $$(`${sel} input[type=checkbox]:checked`).map(x => x.value);
+  const picked = pfx => $$(`#${pfx}Participants input[type=checkbox]:checked`).map(x => x.value);
+
+  /* 지출형 폼(관리자 exp / 요청 rexp)과 추가형 폼(add / radd)은 마크업이 같다.
+     접두사만 다르므로 로직도 접두사로 받아 한 벌만 유지한다. */
+  const EXP_FORMS = ["exp", "rexp"];
+  const ADD_FORMS = ["add", "radd"];
 
   function renderParticipants(){
     const ms = actives();
-    const keepExp = picked("#expParticipants"), keepAdd = picked("#addParticipants");
-    $("#expParticipants").innerHTML = ms.map(m => personBox(m, "exp")).join("");
-    $("#addParticipants").innerHTML = ms.map(m => personBox(m, "add")).join("");
-    keepExp.forEach(id => { const cb = $(`#exp_${id}`); if (cb) cb.checked = true; });
-    keepAdd.forEach(id => { const cb = $(`#add_${id}`); if (cb) cb.checked = true; });
-    $$("#expParticipants input").forEach(cb => cb.onchange = () => { renderCustom(); updatePreview(); });
-    renderCustom();
-    updatePreview();
+    [...EXP_FORMS, ...ADD_FORMS].forEach(pfx => {
+      const box = $(`#${pfx}Participants`);
+      if (!box) return;
+      const keep = picked(pfx);
+      box.innerHTML = ms.map(m => personBox(m, pfx)).join("");
+      keep.forEach(id => { const cb = $(`#${pfx}_${id}`); if (cb) cb.checked = true; });
+    });
+    EXP_FORMS.forEach(pfx => {
+      if (!$(`#${pfx}Participants`)) return;
+      $$(`#${pfx}Participants input`).forEach(cb =>
+        cb.onchange = () => { renderCustom(pfx); updatePreview(pfx); });
+      renderCustom(pfx);
+      updatePreview(pfx);
+    });
   }
 
-  function setAll(sel, on){
-    $$(`${sel} input[type=checkbox]`).forEach(cb => cb.checked = on);
-    if (sel === "#expParticipants") { renderCustom(); updatePreview(); }
+  function setAll(pfx, on){
+    $$(`#${pfx}Participants input[type=checkbox]`).forEach(cb => cb.checked = on);
+    if (EXP_FORMS.includes(pfx)) { renderCustom(pfx); updatePreview(pfx); }
   }
 
-  function renderCustom(existing){
-    $("#customAmounts").innerHTML = picked("#expParticipants").map(id => {
-      const prev = existing ? (existing[id] ?? "") : ($(`#custom_${id}`)?.value ?? "");
+  function renderCustom(pfx, existing){
+    const box = $(`#${pfx}CustomAmounts`);
+    if (!box) return;
+    box.innerHTML = picked(pfx).map(id => {
+      const prev = existing ? (existing[id] ?? "") : ($(`#${pfx}Custom_${id}`)?.value ?? "");
       return `<div class="custom-name">${esc(byId(id)?.name || id)}</div>
-        <input type="number" min="0" step="0.01" id="custom_${esc(id)}" value="${esc(prev)}" placeholder="0">`;
+        <input type="number" min="0" step="0.01" id="${pfx}Custom_${esc(id)}" value="${esc(prev)}" placeholder="0">`;
     }).join("");
-    $$("#customAmounts input").forEach(i => i.oninput = updatePreview);
+    $$(`#${pfx}CustomAmounts input`).forEach(i => i.oninput = () => updatePreview(pfx));
   }
 
-  function computedEntries(){
-    const ids = picked("#expParticipants");
-    const mode = $("#expMode").value;
-    const amt = Number($("#expAmount").value || 0);
-    const out = {};
+  function computedEntries(pfx){
+    const ids  = picked(pfx);
+    const mode = $(`#${pfx}Mode`).value;
+    const amt  = Number($(`#${pfx}Amount`).value || 0);
+    const out  = {};
     if (mode === "CUSTOM") {
-      ids.forEach(id => { const v = Number($(`#custom_${id}`)?.value || 0); if (v > 0) out[id] = v; });
+      ids.forEach(id => { const v = Number($(`#${pfx}Custom_${id}`)?.value || 0); if (v > 0) out[id] = v; });
     } else if (mode === "SPLIT") {
       if (ids.length && amt > 0) ids.forEach(id => out[id] = Math.round(amt / ids.length * 100) / 100);
     } else {
@@ -1078,28 +1255,31 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     return out;
   }
 
-  function updatePreview(){
-    const cur = $("#expCurrency").value;
-    const entries = computedEntries();
+  function updatePreview(pfx){
+    const box = $(`#${pfx}Preview`);
+    if (!box) return;
+    const cur = $(`#${pfx}Currency`).value;
+    const entries = computedEntries(pfx);
     const ids = Object.keys(entries);
-    const box = $("#expPreview");
+    const head = pfx === "exp" ? "등록 미리보기" : "요청 미리보기";
     if (!ids.length) {
-      box.innerHTML = `<h4>등록 미리보기</h4><div class="prow"><span style="color:var(--muted)">금액과 인원을 고르면 1인 부담액이 자동으로 계산됩니다.</span></div>`;
+      box.innerHTML = `<h4>${head}</h4><div class="prow"><span style="color:var(--muted)">금액과 인원을 고르면 1인 부담액이 자동으로 계산됩니다.</span></div>`;
       return;
     }
     const total = Object.values(entries).reduce((a, b) => a + b, 0);
-    box.innerHTML = `<h4>등록 미리보기</h4>` +
+    box.innerHTML = `<h4>${head}</h4>` +
       ids.map(id => `<div class="prow"><span>${esc(byId(id)?.name || id)}</span><b class="out">−${money(cur, entries[id])}</b></div>`).join("") +
       `<div class="prow total"><span>총 반영금액</span><b>${money(cur, total)}</b></div>`;
   }
 
-  function modeChanged(){
-    const mode = $("#expMode").value;
-    $("#customAmountsField").classList.toggle("hide", mode !== "CUSTOM");
-    $("#commonAmountField").classList.toggle("hide", mode === "CUSTOM");
-    $("#amountLabel").textContent = mode === "SPLIT" ? "전체 총액" : "1인당 금액";
-    renderCustom();
-    updatePreview();
+  function modeChanged(pfx){
+    if (!$(`#${pfx}Mode`)) return;
+    const mode = $(`#${pfx}Mode`).value;
+    $(`#${pfx}CustomAmountsField`).classList.toggle("hide", mode !== "CUSTOM");
+    $(`#${pfx}CommonAmountField`).classList.toggle("hide", mode === "CUSTOM");
+    $(`#${pfx}AmountLabel`).textContent = mode === "SPLIT" ? "전체 총액" : "1인당 금액";
+    renderCustom(pfx);
+    updatePreview(pfx);
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -1126,7 +1306,7 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     const title = $("#expTitle").value.trim();
     const date  = $("#expDate").value;
     const cur   = $("#expCurrency").value;
-    const entries = computedEntries();
+    const entries = computedEntries("exp");
     if (!date || !title) return toast("날짜와 사용내용을 입력해 주세요.", "bad");
     if (!Object.keys(entries).length) return toast("사용 인원과 금액을 입력해 주세요.", "bad");
 
@@ -1153,14 +1333,14 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     $("#expDate").value = todayISO();
     $("#expTitle").value = ""; $("#expMemo").value = ""; $("#expAmount").value = "";
     $("#expMode").value = "SAME";
-    setAll("#expParticipants", false);
-    modeChanged();
+    setAll("exp", false);
+    modeChanged("exp");
   }
 
   async function saveAdd(){
     const date = $("#addDate").value, title = $("#addTitle").value.trim();
     const cur = $("#addCurrency").value, amt = Number($("#addAmount").value || 0);
-    const ids = picked("#addParticipants");
+    const ids = picked("add");
     if (!date || !title || amt <= 0 || !ids.length)
       return toast("날짜·내용·금액·대상을 모두 입력해 주세요.", "bad");
 
@@ -1170,8 +1350,101 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
 
     if (await commit(() => db.saveTransaction(g), "금액을 추가했습니다.")) {
       $("#addTitle").value = ""; $("#addAmount").value = ""; $("#addMemo").value = "";
-      setAll("#addParticipants", false);
+      setAll("add", false);
     }
+  }
+
+  const pending = () => data.requests.filter(r => r.status === "PENDING");
+
+  async function submitRequest(kind){
+    if (!requestsReady) return toast("요청 기능이 아직 준비되지 않았습니다.", "bad");
+    const pfx = kind === "EXPENSE" ? "rexp" : "radd";
+    const requester = $("#reqRequester").value.trim();
+    if (!requester) return toast("요청자 이름을 적어주세요.", "bad");
+
+    const date  = $(`#${pfx}Date`).value;
+    const title = $(`#${pfx}Title`).value.trim();
+    const cur   = $(`#${pfx}Currency`).value;
+    if (!date || !title) return toast("날짜와 내용을 입력해 주세요.", "bad");
+
+    let mode, entries;
+    if (kind === "EXPENSE") {
+      mode = $("#rexpMode").value;
+      entries = computedEntries("rexp");
+    } else {
+      mode = "SAME";
+      const amt = Number($("#raddAmount").value || 0);
+      entries = {};
+      if (amt > 0) picked("radd").forEach(id => entries[id] = amt);
+    }
+    if (!Object.keys(entries).length) return toast("인원과 금액을 입력해 주세요.", "bad");
+
+    const req = { id: uid("Q"), kind, date, title, currency: cur, mode,
+                  memo: $(`#${pfx}Memo`).value.trim(), entries, requester };
+
+    if (await commit(() => db.addRequest(req), "요청을 보냈습니다. 관리자 승인을 기다려 주세요.")) {
+      $(`#${pfx}Title`).value = ""; $(`#${pfx}Memo`).value = ""; $(`#${pfx}Amount`).value = "";
+      setAll(pfx, false);
+      if (kind === "EXPENSE") modeChanged("rexp");
+    }
+  }
+
+  function reqSummary(r){
+    const ids = Object.keys(r.entries || {});
+    const tot = Object.values(r.entries || {}).reduce((a, b) => a + Number(b || 0), 0);
+    const names = ids.map(id => byId(id)?.name || id).join(", ");
+    return { ids, tot, names };
+  }
+
+  function renderPending(){
+    const rows = pending();
+    $("#pendingSec").classList.toggle("hide", !rows.length);
+    $("#reqBadge").classList.toggle("hide", !rows.length);
+    $("#reqBadge").textContent = rows.length;
+    $("#reqPaneHint").textContent = rows.length ? `${rows.length}건 대기 중` : "대기 중인 요청이 없습니다";
+
+    $("#pendingBody").innerHTML = rows.length ? rows.map(r => {
+      const { ids, tot, names } = reqSummary(r);
+      return `<tr>
+        <td class="date">${esc(dateShort(r.date))}</td>
+        <td><b>${esc(r.requester)}</b></td>
+        <td>${r.kind === "ADD" ? '<span class="chip cny">추가</span>' : '<span class="chip krw">사용</span>'}</td>
+        <td>${esc(r.title)}${r.memo ? `<span class="memo">${esc(r.memo)}</span>` : ""}</td>
+        <td><span class="chip ${CUR[r.currency].chip}">${CUR[r.currency].short}</span></td>
+        <td class="num">${money(r.currency, tot)}</td>
+        <td>${ids.length}명<span class="memo">${esc(names)}</span></td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="7" class="empty">대기 중인 요청이 없습니다.</td></tr>`;
+
+    const all = data.requests;
+    $("#reqBody").innerHTML = all.length ? all.map(r => {
+      const { ids, tot, names } = reqSummary(r);
+      const st = { PENDING: ["pending","대기"], APPROVED: ["approved","승인됨"], REJECTED: ["rejected","거절됨"] }[r.status];
+      return `<tr>
+        <td class="date">${esc(dateShort(r.date))}</td>
+        <td><b>${esc(r.requester)}</b></td>
+        <td>${r.kind === "ADD" ? '<span class="chip cny">추가</span>' : '<span class="chip krw">사용</span>'}</td>
+        <td>${esc(r.title)}${r.memo ? `<span class="memo">${esc(r.memo)}</span>` : ""}</td>
+        <td><span class="chip ${CUR[r.currency].chip}">${CUR[r.currency].short}</span></td>
+        <td class="num">${money(r.currency, tot)}</td>
+        <td>${ids.length}명<span class="memo">${esc(names)}</span></td>
+        <td style="white-space:nowrap">${r.status === "PENDING"
+          ? `<button class="btn sm" data-approve="${esc(r.id)}">승인</button> <button class="btn sm warn" data-reject="${esc(r.id)}">거절</button>`
+          : `<span class="req-status ${st[0]}">${st[1]}</span>`}</td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="8" class="empty">요청이 없습니다.</td></tr>`;
+
+    $$("#reqBody [data-approve]").forEach(b => b.onclick = () => {
+      const r = data.requests.find(x => x.id === b.dataset.approve);
+      const { tot } = reqSummary(r);
+      if (!confirm(`"${r.title}" ${fmt[r.currency](tot)} 요청을 승인할까요?\n승인하면 장부에 바로 반영됩니다.`)) return;
+      commit(() => db.approveRequest(r.id), "요청을 승인해 장부에 반영했습니다.");
+    });
+    $$("#reqBody [data-reject]").forEach(b => b.onclick = () => {
+      const r = data.requests.find(x => x.id === b.dataset.reject);
+      if (!confirm(`"${r.title}" 요청을 거절할까요?`)) return;
+      commit(() => db.rejectRequest(r.id), "요청을 거절했습니다.");
+    });
   }
 
   function renderManage(){
@@ -1211,14 +1484,14 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     $("#expCurrency").value = g.currency;
     $("#expMode").value = g.mode || "CUSTOM";
     $("#expMemo").value = g.memo || "";
-    setAll("#expParticipants", false);
+    setAll("exp", false);
     Object.keys(g.entries || {}).forEach(mid => { const cb = $(`#exp_${mid}`); if (cb) cb.checked = true; });
     if (g.mode === "SAME")       $("#expAmount").value = Object.values(g.entries)[0] ?? "";
     else if (g.mode === "SPLIT") $("#expAmount").value = groupTotal(g);
     else                          $("#expAmount").value = "";
-    modeChanged();
-    if (g.mode === "CUSTOM") renderCustom(g.entries);
-    updatePreview();
+    modeChanged("exp");
+    if (g.mode === "CUSTOM") renderCustom("exp", g.entries);
+    updatePreview("exp");
     $('[data-tab="paneExpense"]').click();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -1315,7 +1588,7 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
 
   function renderAll(){
     renderTotals(); renderLedger(); renderRecent(); renderAllDialog(); renderUpdated();
-    renderManage(); renderMembers(); renderParticipants(); syncAdminUI();
+    renderManage(); renderMembers(); renderPending(); renderParticipants(); syncAdminUI();
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -1323,7 +1596,8 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
      ══════════════════════════════════════════════════════════ */
   async function refresh(){
     try {
-      data = await db.loadAll();
+      const [core, reqs] = await Promise.all([db.loadAll(), db.loadRequests()]);
+      data = { ...core, requests: reqs };
       renderAll();
       setStatus(isAdmin ? "admin" : "online");
       return true;
@@ -1353,9 +1627,21 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
      ══════════════════════════════════════════════════════════ */
   $("#adminBtn").onclick    = () => adminDialog.showModal();
   $("#consoleBtn").onclick  = () => setView("admin");
+  $("#requestBtn").onclick  = () => setView("request");
+  $("#reqBack").onclick     = () => setView("ledger");
+  $("#submitRexpBtn").onclick = () => submitRequest("EXPENSE");
+  $("#submitRaddBtn").onclick = () => submitRequest("ADD");
+  $("#selectAllRexp").onclick = () => setAll("rexp", true);
+  $("#clearAllRexp").onclick  = () => setAll("rexp", false);
+  $("#selectAllRadd").onclick = () => setAll("radd", true);
+  $("#clearAllRadd").onclick  = () => setAll("radd", false);
+  $("#rexpMode").onchange     = () => modeChanged("rexp");
+  $("#rexpAmount").oninput    = () => updatePreview("rexp");
+  $("#rexpCurrency").onchange = () => updatePreview("rexp");
   $("#backBtn").onclick     = () => setView("ledger");
   $("#backBtn2").onclick    = () => setView("ledger");
-  window.addEventListener("hashchange", () => setView(location.hash === "#admin" ? "admin" : "ledger"));
+  window.addEventListener("hashchange", () => setView(
+    location.hash === "#admin" ? "admin" : location.hash === "#request" ? "request" : "ledger"));
   $("#loginBtn").onclick    = login;
   $("#adminPin").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
   $("#logoutBtn").onclick   = () => { setView("ledger"); auth.logout(); };
@@ -1371,16 +1657,18 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
   $("#closeDetailDlg").onclick = () => detailDialog.close();
   $("#closeAllDlg").onclick    = () => allDialog.close();
   $("#closePeopleDlg").onclick = () => peopleDialog.close();
-  $("#selectAllExp").onclick = () => setAll("#expParticipants", true);
-  $("#clearAllExp").onclick  = () => setAll("#expParticipants", false);
-  $("#selectAllAdd").onclick = () => setAll("#addParticipants", true);
-  $("#clearAllAdd").onclick  = () => setAll("#addParticipants", false);
-  $("#expMode").onchange     = modeChanged;
-  $("#expAmount").oninput    = updatePreview;
-  $("#expCurrency").onchange = updatePreview;
+  $("#selectAllExp").onclick = () => setAll("exp", true);
+  $("#clearAllExp").onclick  = () => setAll("exp", false);
+  $("#selectAllAdd").onclick = () => setAll("add", true);
+  $("#clearAllAdd").onclick  = () => setAll("add", false);
+  $("#expMode").onchange     = () => modeChanged("exp");
+  $("#expAmount").oninput    = () => updatePreview("exp");
+  $("#expCurrency").onchange = () => updatePreview("exp");
   $$(".tab").forEach(t => t.onclick = () => {
-    $$(".tab").forEach(x => x.classList.remove("active"));
-    $$(".pane").forEach(p => p.classList.remove("active"));
+    const group = t.closest(".tabs");
+    const scope = t.closest("section");
+    group.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    scope.querySelectorAll(":scope > .pane").forEach(p => p.classList.remove("active"));
     t.classList.add("active");
     $("#" + t.dataset.tab).classList.add("active");
   });
@@ -1388,9 +1676,8 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
   /* ══════════════════════════════════════════════════════════
      시작
      ══════════════════════════════════════════════════════════ */
-  $("#expDate").value = todayISO();
-  $("#addDate").value = todayISO();
-  modeChanged();
+  ["exp", "add", "rexp", "radd"].forEach(pfx => { const el = $(`#${pfx}Date`); if (el) el.value = todayISO(); });
+  EXP_FORMS.forEach(modeChanged);
 
   if (!READY) {
     showSetupNotice();
