@@ -268,8 +268,15 @@ td.date{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);white-spac
 .memo{color:var(--muted);font-size:11.5px;display:block;margin-top:1px}
 
 /* ---------- admin ---------- */
-.admin{display:none;margin-top:40px;padding-top:30px;border-top:2px solid var(--line-2)}
+.admin{display:none}
 .admin.open{display:block}
+.admin-back{
+  display:inline-flex;align-items:center;gap:6px;margin-bottom:16px;
+  border:1px solid var(--line-2);background:var(--surface);color:var(--muted);
+  border-radius:999px;padding:6px 13px 6px 10px;font-size:12.5px;font-weight:600;
+}
+.admin-back:hover{border-color:var(--jade);color:var(--jade)}
+.admin-back .arrow{font-size:14px;line-height:1}
 .admin-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px}
 .admin-bar h2{font-family:var(--f-display);font-size:19px;margin:0;font-weight:600}
 .tag{
@@ -406,14 +413,16 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     <div>
       <div class="eyebrow"><span class="rule"></span><span>한서대학교 교수파견</span></div>
       <h1>광서사범대 경비 장부</h1>
-      <p class="dek">원화(KRW)와 위안(CNY)을 서로 섞지 않고 각각의 지갑으로 관리합니다. 이름을 누르면 개인별 상세 내역이 열립니다.</p>
+      <p class="dek" id="dek">원화(KRW)와 위안(CNY)을 서로 섞지 않고 각각의 지갑으로 관리합니다. 이름을 누르면 개인별 상세 내역이 열립니다.</p>
     </div>
     <div class="mast-side">
       <span class="sync" id="syncPill" data-state="connecting"><span class="dot"></span><span id="syncText">연결 중</span></span>
       <div class="toolbar">
         <button class="btn" id="refreshBtn">새로고침</button>
         <button class="btn" id="exportBtn">CSV 내려받기</button>
+        <button class="btn hide" id="backBtn">장부 보기</button>
         <button class="btn primary" id="adminBtn">관리자</button>
+        <button class="btn primary hide" id="consoleBtn">관리자 콘솔</button>
         <button class="btn warn hide" id="logoutBtn">관리자 종료</button>
       </div>
     </div>
@@ -424,6 +433,8 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     <code>src/artifact-body.html</code> 상단의 <code>SUPABASE_URL</code> 과 <code>SUPABASE_ANON_KEY</code> 를 채우고
     <code>./deploy.sh</code> 로 다시 배포하세요. 준비 순서는 저장소의 <code>supabase/README.md</code> 에 있습니다.
   </div>
+
+  <div id="viewLedger">
 
   <section>
     <div class="sec-head">
@@ -454,7 +465,10 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     </div></div>
   </section>
 
-  <section class="admin" id="adminZone">
+  </div><!-- /viewLedger -->
+
+  <section class="admin" id="viewAdmin">
+    <button class="admin-back" type="button" id="backBtn2"><span class="arrow">&lsaquo;</span><span>장부로 돌아가기</span></button>
     <div class="admin-bar">
       <h2>관리자 콘솔</h2>
       <span class="tag">입력 · 수정 권한</span>
@@ -993,10 +1007,30 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
   }
 
   /* ── 관리자 UI ── */
+  /* 장부 화면과 관리자 화면은 서로 겹치지 않는 독립 화면이다.
+     주소의 #admin 으로 상태를 남겨 새로고침·뒤로가기가 자연스럽게 동작한다. */
+  let view = location.hash === "#admin" ? "admin" : "ledger";
+
+  function setView(next){
+    view = next;
+    syncAdminUI();
+    const want = (view === "admin" && isAdmin) ? "#admin" : "";
+    if ((location.hash || "") !== want)
+      history.replaceState(null, "", location.pathname + location.search + want);
+    window.scrollTo(0, 0);
+  }
+
   function syncAdminUI(){
-    $("#adminZone").classList.toggle("open", isAdmin);
+    const onAdmin = isAdmin && view === "admin";
+    $("#viewAdmin").classList.toggle("open", onAdmin);
+    $("#viewLedger").classList.toggle("hide", onAdmin);
     $("#adminBtn").classList.toggle("hide", isAdmin || !READY);
+    $("#consoleBtn").classList.toggle("hide", !isAdmin || onAdmin);
+    $("#backBtn").classList.toggle("hide", !onAdmin);
     $("#logoutBtn").classList.toggle("hide", !isAdmin);
+    $("#dek").textContent = onAdmin
+      ? "내역을 등록·수정하고 구성원을 관리합니다. 변경하면 모든 사람의 화면에 바로 반영됩니다."
+      : "원화(KRW)와 위안(CNY)을 서로 섞지 않고 각각의 지갑으로 관리합니다. 이름을 누르면 개인별 상세 내역이 열립니다.";
   }
 
   const personBox = (m, prefix) =>
@@ -1186,7 +1220,7 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     if (g.mode === "CUSTOM") renderCustom(g.entries);
     updatePreview();
     $('[data-tab="paneExpense"]').click();
-    $("#adminZone").scrollIntoView({ behavior: "smooth", block: "start" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function renderMembers(){
@@ -1237,7 +1271,7 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
       await auth.login(pw);
       $("#adminPin").value = "";
       adminDialog.close();
-      $("#adminZone").scrollIntoView({ behavior: "smooth", block: "start" });
+      setView("admin");
     } catch (err) { toast(reason(err), "bad"); }
   }
 
@@ -1318,9 +1352,13 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
      이벤트
      ══════════════════════════════════════════════════════════ */
   $("#adminBtn").onclick    = () => adminDialog.showModal();
+  $("#consoleBtn").onclick  = () => setView("admin");
+  $("#backBtn").onclick     = () => setView("ledger");
+  $("#backBtn2").onclick    = () => setView("ledger");
+  window.addEventListener("hashchange", () => setView(location.hash === "#admin" ? "admin" : "ledger"));
   $("#loginBtn").onclick    = login;
   $("#adminPin").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
-  $("#logoutBtn").onclick   = () => auth.logout();
+  $("#logoutBtn").onclick   = () => { setView("ledger"); auth.logout(); };
   $("#showAllBtn").onclick  = () => openAll(null);
   $("#exportBtn").onclick   = exportCSV;
   $("#refreshBtn").onclick  = () => refresh().then(ok => ok && toast("최신 내역을 불러왔습니다."));
