@@ -10,7 +10,7 @@ open("index.html", "w", encoding="utf-8").write(
     '<meta charset="utf-8">\n'
     '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
     '<meta name="color-scheme" content="light dark">\n'
-    '<meta name="description" content="원화와 위안을 분리해 관리하는 구이린 파견 교수진 공동경비 장부">\n'
+    '<meta name="description" content="원화와 위안을 분리해 관리하는 한서대학교 교수파견 경비 장부">\n'
     + head.strip() + "\n</head>\n<body>\n" + body.strip() + "\n</body>\n</html>\n"
 )
 print("index.html 생성 완료")
