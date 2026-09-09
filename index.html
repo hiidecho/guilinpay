@@ -634,7 +634,9 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
   const SUPABASE_ANON_KEY = "";   // 예: eyJhbGciOi...
   const ADMIN_EMAIL       = "admin@guilinpay.local";  // 관리자 계정 이메일
 
-  const READY = /^https:\/\/.+\.supabase\.co$/.test(SUPABASE_URL) && SUPABASE_ANON_KEY.length > 40;
+  /* anon 키는 옛 JWT 형식(eyJ...)과 새 publishable 형식(sb_publishable_...) 둘 다 허용 */
+  const READY = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(SUPABASE_URL.trim())
+             && SUPABASE_ANON_KEY.trim().length > 20;
   const sb = READY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
   /* ── 유틸 ── */
