@@ -162,7 +162,16 @@ code{font-family:var(--f-mono);font-size:.92em;background:var(--surface-2);
 .purse{
   background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
   padding:20px 21px 18px;box-shadow:var(--shadow-2);position:relative;overflow:hidden;
+  display:block;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;
+  transition:border-color .15s,box-shadow .15s,transform .12s;
 }
+.purse:hover{border-color:var(--jade-line);transform:translateY(-1px)}
+.purse-hint{
+  display:flex;align-items:center;gap:5px;margin-top:14px;padding-top:11px;
+  border-top:1px dashed var(--line);font-size:11.5px;color:var(--muted);
+}
+.purse:hover .purse-hint{color:var(--jade)}
+.purse-hint .arrow{font-size:14px;line-height:1}
 .purse::before{content:"";position:absolute;inset:0 auto 0 0;width:3px}
 .purse.krw::before{background:var(--won)}
 .purse.cny::before{background:var(--yuan)}
@@ -314,6 +323,7 @@ dialog{
   box-shadow:var(--shadow-3);width:min(660px,calc(100vw - 26px));max-height:86vh;
 }
 dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
+#allDialog{width:min(840px,calc(100vw - 26px))}
 .modal{padding:22px}
 .modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:16px}
 .modal-head h3{font-family:var(--f-display);font-size:19px;margin:0;font-weight:600;letter-spacing:-.01em}
@@ -588,12 +598,12 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
 <dialog id="allDialog">
   <div class="modal">
     <div class="modal-head">
-      <div><h3>전체 사용내역</h3><div class="sub" id="allSub"></div></div>
+      <div><h3 id="allTitle">전체 사용내역</h3><div class="sub" id="allSub"></div></div>
       <button class="x" id="closeAllDlg" aria-label="닫기">&times;</button>
     </div>
     <div class="modal-scroll"><div class="sheet"><div class="scroll">
       <table>
-        <thead><tr><th>날짜</th><th>내용</th><th>통화</th><th style="text-align:right">금액</th><th>인원</th></tr></thead>
+        <thead id="allHead"></thead>
         <tbody id="allBody"></tbody>
       </table>
     </div></div></div>
@@ -806,7 +816,8 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
       const c = CUR[cur];
       const bal = sumAll(balance, cur), use = sumAll(spent, cur), fun = sumAll(funded, cur);
       const pct = ratio(bal, fun);
-      return `<div class="purse ${c.chip}">
+      const count = data.groups.filter(g => g.type === "EXPENSE" && g.currency === cur).length;
+      return `<button class="purse ${c.chip}" type="button" data-cur="${cur}">
         <div class="purse-top">
           <span class="purse-name">${c.label}</span>
           <span class="chip ${c.chip}">${actives().length}명 합계</span>
@@ -818,8 +829,10 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
           <div><span class="k">총 투입</span><b>${money(cur, fun)}</b></div>
           <div><span class="k">누적 사용</span><b>${money(cur, use)}</b></div>
         </div>
-      </div>`;
+        <div class="purse-hint"><span>사용내역 ${count}건 보기</span><span class="arrow">&rsaquo;</span></div>
+      </button>`;
     }).join("");
+    $$("[data-cur]").forEach(b => b.onclick = () => openAll(b.dataset.cur));
   }
 
   function pocket(id, cur){
@@ -874,12 +887,44 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
     bindPeople($("#recentBody"));
   }
 
+  /* null = 전체, "KRW"/"CNY" = 해당 통화만 */
+  let allFilter = null;
+
   function renderAllDialog(){
-    const rows = sorted().filter(g => g.type === "EXPENSE");
-    $("#allSub").textContent = `${rows.length}건`;
-    $("#allBody").innerHTML = rows.length ? rows.map(txRow).join("")
-      : `<tr><td colspan="5" class="empty">아직 등록된 내역이 없습니다.</td></tr>`;
+    const cur  = allFilter;
+    const rows = sorted().filter(g => g.type === "EXPENSE" && (!cur || g.currency === cur));
+    const cols = cur ? 4 : 5;
+
+    $("#allTitle").textContent = cur ? `${CUR[cur].label} 사용내역` : "전체 사용내역";
+    $("#allSub").textContent   = cur
+      ? `${rows.length}건 · 합계 ${fmt[cur](rows.reduce((t, g) => t + groupTotal(g), 0))}`
+      : `${rows.length}건`;
+
+    $("#allHead").innerHTML = `<tr><th>날짜</th><th>내용</th>${cur ? "" : "<th>통화</th>"}` +
+      `<th style="text-align:right">금액</th><th>인원</th></tr>`;
+
+    $("#allBody").innerHTML = rows.length ? rows.map(g => {
+      const ids = groupPeople(g);
+      const names = ids.map(id => byId(id)?.name || id).join(", ");
+      return `<tr>
+        <td class="date">${esc(dateShort(g.date))}</td>
+        <td>${esc(g.title)}${g.memo ? `<span class="memo">${esc(g.memo)}</span>` : ""}</td>
+        ${cur ? "" : `<td><span class="chip ${CUR[g.currency].chip}">${CUR[g.currency].short}</span></td>`}
+        <td class="num out">−${money(g.currency, groupTotal(g))}</td>
+        <td>
+          <button class="pill-people" type="button" data-people="${esc(g.id)}">${ids.length}명</button>
+          <span class="memo">${esc(names)}</span>
+        </td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="${cols}" class="empty">해당 내역이 없습니다.</td></tr>`;
+
     bindPeople($("#allBody"));
+  }
+
+  function openAll(cur){
+    allFilter = cur || null;
+    renderAllDialog();
+    allDialog.showModal();
   }
 
   function renderUpdated(){
@@ -900,16 +945,16 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
       </div>
       <div class="modal-scroll"><div class="sheet"><div class="scroll">
         <table>
-          <thead><tr><th>날짜</th><th>내용</th><th>통화</th><th style="text-align:right">변화</th></tr></thead>
+          <thead><tr><th>날짜</th><th>내용</th><th style="text-align:right">지출</th></tr></thead>
           <tbody>${rows.length ? rows.map(g => {
             const amt = amountOf(g, mid), inflow = g.type === "ADD";
+            /* 통화 칩은 뺐다 — 금액에 붙는 ₩ / 元 이 이미 통화를 말해준다 */
             return `<tr>
               <td class="date">${esc(dateShort(g.date))}</td>
               <td>${esc(g.title)}</td>
-              <td><span class="chip ${CUR[g.currency].chip}">${CUR[g.currency].short}</span></td>
               <td class="num ${inflow ? "in" : "out"}">${inflow ? "+" : "−"}${money(g.currency, amt)}</td>
             </tr>`;
-          }).join("") : `<tr><td colspan="4" class="empty">내역이 없습니다.</td></tr>`}</tbody>
+          }).join("") : `<tr><td colspan="3" class="empty">내역이 없습니다.</td></tr>`}</tbody>
         </table>
       </div></div></div>`;
     detailDialog.showModal();
@@ -1257,7 +1302,7 @@ dialog::backdrop{background:rgba(10,18,16,.5);backdrop-filter:blur(2px)}
   $("#loginBtn").onclick    = login;
   $("#adminPin").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
   $("#logoutBtn").onclick   = () => auth.logout();
-  $("#showAllBtn").onclick  = () => allDialog.showModal();
+  $("#showAllBtn").onclick  = () => openAll(null);
   $("#exportBtn").onclick   = exportCSV;
   $("#refreshBtn").onclick  = () => refresh().then(ok => ok && toast("최신 내역을 불러왔습니다."));
   $("#saveExpenseBtn").onclick = saveExpense;
