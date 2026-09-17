@@ -24,6 +24,7 @@ Supabase      (PostgreSQL + Auth + 실시간)
 | 파일 | 설명 |
 |---|---|
 | `index.html` | 배포본. GitHub Pages가 이 파일을 서빙합니다 |
+| `GuangxiResults/index.html` | 성적 분포 자동 조정 시스템 — https://hiidecho.github.io/guilinpay/GuangxiResults/ (단독 파일, 빌드 없음) |
 | `src/artifact-body.html` | **실제 소스.** 여기만 고치세요 |
 | `build.sh` | `src/` → `index.html` 생성 |
 | `deploy.sh` | 재빌드 → 커밋 → 푸시 한 번에 |

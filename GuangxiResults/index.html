@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>성적 분포 자동 조정 시스템</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#f5f7fb; --card:#fff; --text:#152033; --muted:#6b7280; --line:#e5e7eb;
+    --primary:#2563eb; --primary2:#1d4ed8; --good:#15803d; --warn:#b45309; --bad:#b91c1c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Noto Sans KR","Segoe UI",sans-serif}
+  .wrap{max-width:1440px;margin:0 auto;padding:28px}
+  h1{font-size:28px;margin:0 0 8px}
+  .sub{color:var(--muted);margin-bottom:22px}
+  .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.03)}
+  .card h2{font-size:18px;margin:0 0 14px}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap}
+  button,.file-label{
+    border:0;border-radius:10px;padding:11px 14px;font-size:14px;font-weight:700;cursor:pointer;
+    background:var(--primary);color:#fff;display:inline-flex;align-items:center;gap:6px
+  }
+  button:hover,.file-label:hover{background:var(--primary2)}
+  button.secondary,.file-label.secondary{background:#eef2ff;color:#1e40af}
+  button.ghost{background:#fff;color:#374151;border:1px solid var(--line)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  input[type=file]{display:none}
+  .notice{margin-top:14px;padding:12px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;color:#9a3412;font-size:13px;line-height:1.55}
+  .oknotice{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
+  .settings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .setting{border:1px solid var(--line);border-radius:10px;padding:11px}
+  .setting b{display:block;font-size:13px;margin-bottom:4px}
+  .setting span{font-size:18px;font-weight:800}
+  .full{grid-column:1/-1}
+  .controls{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:12px}
+  .controls label{font-size:13px;color:#374151;display:flex;align-items:center;gap:6px}
+  .controls input[type=number]{width:74px;padding:7px;border:1px solid var(--line);border-radius:8px}
+  .status{margin-top:12px;font-size:13px;color:var(--muted);white-space:pre-line}
+  .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:18px}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+  .kpi .v{font-size:24px;font-weight:900;margin-top:4px}
+  .kpi .l{font-size:12px;color:var(--muted)}
+  .grade-a{color:#7c3aed}.grade-b{color:#2563eb}.grade-c{color:#15803d}.grade-d{color:#b45309}
+  .table-card{margin-top:18px;overflow:hidden}
+  .table-wrap{overflow:auto;max-height:640px;border:1px solid var(--line);border-radius:12px}
+  table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+  th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+  th{position:sticky;top:0;background:#f8fafc;z-index:1;font-weight:800}
+  td.name{text-align:left;font-weight:700}
+  tr:last-child td{border-bottom:0}
+  .badge{display:inline-block;padding:3px 7px;border-radius:999px;font-size:11px;font-weight:800}
+  .badge.good{background:#dcfce7;color:#166534}
+  .badge.warn{background:#ffedd5;color:#9a3412}
+  .badge.bad{background:#fee2e2;color:#991b1b}
+  .delta.plus{color:#166534;font-weight:800}
+  .delta.minus{color:#991b1b;font-weight:800}
+  .foot{margin:14px 0 0;color:var(--muted);font-size:12px;line-height:1.6}
+  @media(max-width:900px){
+    .grid{grid-template-columns:1fr}
+    .summary{grid-template-columns:repeat(2,1fr)}
+    .wrap{padding:16px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>교수 성적 계산 · 분포 자동 조정</h1>
+  <div class="sub">엑셀의 평가비율을 읽어 원점수를 계산하고, 평시과제 개수와 관계없이 과정성적 40%를 반영한 뒤 A 10% · B 40% · C 40% · D 10%가 되도록 <b>기말점수만 최소한으로 조정</b>합니다.</div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>1. 엑셀 불러오기</h2>
+      <div class="toolbar">
+        <button class="secondary" id="btnTemplate">엑셀 양식 다운로드</button>
+        <label class="file-label" for="fileInput">엑셀 업로드</label>
+        <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" />
+        <button class="ghost" id="btnSample">샘플 데이터</button>
+      </div>
+      <div class="notice">
+        원본 기말점수는 덮어쓰지 않습니다. 평시과제는 <b>평시1, 평시2, 평시3…처럼 개수 제한 없이</b> 사용할 수 있으며, 각 과제의 반영비율을 엑셀 상단 표에서 직접 지정합니다. <b>원기말 / 조정기말 / 조정폭 / 원점수 / 조정총점</b>은 모두 따로 보존합니다.
+      </div>
+      <div id="uploadStatus" class="status">아직 파일을 불러오지 않았습니다.</div>
+    </section>
+
+    <section class="card">
+      <h2>2. 적용 규칙</h2>
+      <div class="settings">
+        <div class="setting"><b>A 등급</b><span>10%</span></div>
+        <div class="setting"><b>B 등급</b><span>40%</span></div>
+        <div class="setting"><b>C 등급</b><span>40%</span></div>
+        <div class="setting"><b>D 등급</b><span>10%</span></div>
+        <div class="setting full"><b>기말 반영비율</b><span>60% 고정</span></div>
+      </div>
+      <div class="controls">
+        <label><input type="checkbox" id="limitToggle"> 기말 조정폭 제한</label>
+        <label>최대 ± <input type="number" id="maxDelta" value="15" min="0" max="100" step="0.5"> 점</label>
+      </div>
+      <div class="foot">
+        기본은 <b>분포 맞춤 우선</b>입니다. 제한을 켜면 필요한 조정폭이 한도를 넘는 학생은 가능한 범위까지만 조정하고 “수동검토”로 표시합니다.
+      </div>
+    </section>
+  </div>
+
+  <div class="summary" id="summary">
+    <div class="kpi"><div class="l">학생 수</div><div class="v" id="kpiN">0</div></div>
+    <div class="kpi"><div class="l">A</div><div class="v grade-a" id="kpiA">0</div></div>
+    <div class="kpi"><div class="l">B</div><div class="v grade-b" id="kpiB">0</div></div>
+    <div class="kpi"><div class="l">C</div><div class="v grade-c" id="kpiC">0</div></div>
+    <div class="kpi"><div class="l">D</div><div class="v grade-d" id="kpiD">0</div></div>
+  </div>
+
+  <section class="card table-card">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+      <h2 style="margin:0">3. 계산 결과</h2>
+      <div class="toolbar">
+        <button id="btnRecalc" class="secondary" disabled>다시 계산</button>
+        <button id="btnExport" disabled>결과 엑셀 다운로드</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr id="theadRow"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="foot" id="footInfo">데이터를 업로드하면 계산 결과가 표시됩니다.</div>
+  </section>
+</div>
+
+<script>
+const GRADE_RATIOS = {A:0.10, B:0.40, C:0.40, D:0.10};
+const GRADE_BANDS = {
+  A:{min:90.0,max:100.0},
+  B:{min:80.0,max:89.9},
+  C:{min:70.0,max:79.9},
+  D:{min:60.0,max:69.9}
+};
+
+let state = {
+  weights:{},
+  students:[],
+  results:[],
+  activeCourseCols:[],
+  finalHeader:"기말",
+  sourceName:""
+};
+
+const $ = s => document.querySelector(s);
+const round2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+const fmt = n => Number.isFinite(n) ? n.toFixed(1) : "-";
+
+function norm(s){
+  return String(s ?? "").replace(/\s+/g,"").replace(/[·/()_\-]/g,"").toLowerCase();
+}
+function isFinalLabel(s){
+  const x=norm(s);
+  return ["기말","기말시험","기말점수","final","finalexam"].includes(x);
+}
+function isSummaryLabel(s){
+  const x=norm(s);
+  return x.includes("합계") || x.includes("총합") || x.includes("과정성적");
+}
+function isStudentIdLabel(s){
+  const x=norm(s); return ["학번","studentid","id"].includes(x);
+}
+function isNameLabel(s){
+  const x=norm(s); return ["이름","성명","name","학생명"].includes(x);
+}
+function num(v){
+  if(v === null || v === undefined || v === "") return NaN;
+  if(typeof v === "number") return v;
+  const s=String(v).replace(/%/g,"").replace(/,/g,"").trim();
+  return Number(s);
+}
+function pctNum(v){
+  const n=num(v);
+  if(!Number.isFinite(n)) return NaN;
+  return n <= 1 ? n*100 : n;
+}
+
+function distributeCounts(n){
+  const grades=["A","B","C","D"];
+  const exact=grades.map(g=>n*GRADE_RATIOS[g]);
+  const base=exact.map(Math.floor);
+  let remain=n-base.reduce((a,b)=>a+b,0);
+  const order=exact.map((v,i)=>({i,rem:v-base[i]}))
+    .sort((a,b)=> b.rem-a.rem || a.i-b.i);
+  for(let k=0;k<remain;k++) base[order[k%order.length].i]++;
+  return Object.fromEntries(grades.map((g,i)=>[g,base[i]]));
+}
+
+function gradeByIndex(idx, counts){
+  if(idx < counts.A) return "A";
+  if(idx < counts.A + counts.B) return "B";
+  if(idx < counts.A + counts.B + counts.C) return "C";
+  return "D";
+}
+
+function validateWeights(weights){
+  const entries=Object.entries(weights).filter(([k])=>!isSummaryLabel(k));
+  const finalEntry=entries.find(([k])=>isFinalLabel(k));
+  if(!finalEntry) throw new Error("비율표에서 '기말시험' 항목을 찾지 못했습니다.");
+  const finalW=finalEntry[1];
+  if(Math.abs(finalW-60) > 0.001) throw new Error(`기말 비율은 60% 고정이어야 합니다. 현재 ${finalW}%입니다.`);
+  const courseSum=entries.filter(([k])=>!isFinalLabel(k)).reduce((s,[,w])=>s+w,0);
+  if(Math.abs(courseSum-40) > 0.01) throw new Error(`출석·평시과제 비율 합계는 40%여야 합니다. 현재 ${courseSum.toFixed(2)}%입니다.`);
+}
+
+function parseSheet(ws){
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+  if(!rows.length) throw new Error("엑셀 시트가 비어 있습니다.");
+
+  // 1) 학생 헤더 행 탐색
+  let headerRow=-1, idCol=-1, nameCol=-1, finalCol=-1;
+  for(let r=0;r<Math.min(rows.length,40);r++){
+    const row=rows[r];
+    let tId=-1,tName=-1,tFinal=-1;
+    row.forEach((v,c)=>{
+      if(isStudentIdLabel(v)) tId=c;
+      if(isNameLabel(v)) tName=c;
+      if(isFinalLabel(v)) tFinal=c;
+    });
+    if(tName>=0 && tFinal>=0){
+      headerRow=r; idCol=tId; nameCol=tName; finalCol=tFinal; break;
+    }
+  }
+  if(headerRow<0) throw new Error("학생 점수표 헤더(이름, 기말)를 찾지 못했습니다.");
+
+  const headers=rows[headerRow].map(v=>String(v).trim());
+
+  // 2) 상단 비율표 탐색: 첫 두 열을 기본으로 보되, 어느 열에 있어도 "평가항목/반영비율" 헤더를 찾음
+  let ratioHeaderRow=-1, itemCol=-1, weightCol=-1;
+  for(let r=0;r<headerRow;r++){
+    const row=rows[r];
+    let ti=-1,tw=-1;
+    row.forEach((v,c)=>{
+      const x=norm(v);
+      if(["평가항목","항목"].includes(x)) ti=c;
+      if(["반영비율","비율","가중치"].includes(x)) tw=c;
+    });
+    if(ti>=0 && tw>=0){ratioHeaderRow=r; itemCol=ti; weightCol=tw; break;}
+  }
+  if(ratioHeaderRow<0) throw new Error("상단의 평가비율표(평가항목 / 반영비율)를 찾지 못했습니다.");
+
+  const weights={};
+  for(let r=ratioHeaderRow+1;r<headerRow;r++){
+    const item=String(rows[r][itemCol] ?? "").trim();
+    if(!item) continue;
+    const w=pctNum(rows[r][weightCol]);
+    if(Number.isFinite(w)) weights[item]=w;
+  }
+  validateWeights(weights);
+
+  // 헤더-비율 매칭
+  const activeCourseCols=[];
+  let finalHeader=headers[finalCol] || "기말";
+  const weightEntries=Object.entries(weights).filter(([k])=>!isSummaryLabel(k));
+  for(const [label,w] of weightEntries){
+    if(isFinalLabel(label) || w<=0) continue;
+    const labelNorm=norm(label);
+    let c=headers.findIndex(h=>norm(h)===labelNorm);
+    if(c<0){
+      // 평시과제1 vs 과제1 정도의 완화 매칭
+      c=headers.findIndex(h=>{
+        const hn=norm(h);
+        return hn.includes(labelNorm) || labelNorm.includes(hn);
+      });
+    }
+    if(c<0) throw new Error(`비율이 ${w}%로 설정된 '${label}' 점수 컬럼을 학생 점수표에서 찾지 못했습니다.`);
+    activeCourseCols.push({label,weight:w,col:c,header:headers[c]});
+  }
+
+  const finalWeightEntry=weightEntries.find(([k])=>isFinalLabel(k));
+  const finalWeight=finalWeightEntry[1];
+
+  // 학생 데이터
+  const students=[];
+  const errors=[];
+  for(let r=headerRow+1;r<rows.length;r++){
+    const row=rows[r];
+    const name=String(row[nameCol] ?? "").trim();
+    const sid=idCol>=0 ? String(row[idCol] ?? "").trim() : "";
+    if(!name && !sid) continue;
+
+    const scores={};
+    let valid=true;
+    for(const c of activeCourseCols){
+      const v=num(row[c.col]);
+      if(!Number.isFinite(v) || v<0 || v>100){
+        errors.push(`${r+1}행 ${name||sid}: '${c.header}' 점수가 없거나 0~100 범위가 아닙니다.`);
+        valid=false;
+      }else scores[c.label]=v;
+    }
+    const f=num(row[finalCol]);
+    if(!Number.isFinite(f) || f<0 || f>100){
+      errors.push(`${r+1}행 ${name||sid}: '${finalHeader}' 점수가 없거나 0~100 범위가 아닙니다.`);
+      valid=false;
+    }
+    if(valid) students.push({sid,name,scores,final:f,rowIndex:r+1});
+  }
+  if(!students.length) throw new Error("계산 가능한 학생 데이터가 없습니다.");
+  if(errors.length) throw new Error("점수 입력 오류가 있습니다.\n- "+errors.slice(0,12).join("\n- ")+(errors.length>12?`\n... 외 ${errors.length-12}건`:""));
+
+  return {weights,students,activeCourseCols,finalHeader,finalWeight};
+}
+
+function recalc(){
+  if(!state.students.length) return;
+  const limitOn=$("#limitToggle").checked;
+  const maxDelta=Math.max(0,Number($("#maxDelta").value)||0);
+
+  let temp=state.students.map((s,i)=>{
+    let courseContribution=0;
+    for(const c of state.activeCourseCols){
+      courseContribution += s.scores[c.label] * (c.weight/100);
+    }
+    const rawTotal=courseContribution + s.final * 0.60;
+    return {...s,originalIndex:i,courseContribution,rawTotal};
+  });
+
+  // 원점수, 원기말, 원래 행 순서로 안정 정렬
+  temp.sort((a,b)=> b.rawTotal-a.rawTotal || b.final-a.final || a.originalIndex-b.originalIndex);
+  const counts=distributeCounts(temp.length);
+
+  temp=temp.map((s,idx)=>{
+    const grade=gradeByIndex(idx,counts);
+    const band=GRADE_BANDS[grade];
+    let targetTotal=s.rawTotal;
+    if(targetTotal<band.min) targetTotal=band.min;
+    if(targetTotal>band.max) targetTotal=band.max;
+
+    let requiredFinal=(targetTotal-s.courseContribution)/0.60;
+    let impossibleByRange=requiredFinal<0 || requiredFinal>100;
+    requiredFinal=Math.min(100,Math.max(0,requiredFinal));
+
+    let desiredDelta=requiredFinal-s.final;
+    let adjustedFinal=requiredFinal;
+    let limited=false;
+
+    if(limitOn && Math.abs(desiredDelta)>maxDelta){
+      adjustedFinal=s.final + Math.sign(desiredDelta)*maxDelta;
+      adjustedFinal=Math.min(100,Math.max(0,adjustedFinal));
+      limited=true;
+    }
+    adjustedFinal=round2(adjustedFinal);
+    const adjustedTotal=round2(s.courseContribution + adjustedFinal*0.60);
+    const delta=round2(adjustedFinal-s.final);
+    const inBand=adjustedTotal >= band.min-0.001 && adjustedTotal <= band.max+0.001;
+    const status = (inBand && !impossibleByRange && !limited) ? "정상" : "수동검토";
+
+    return {...s,rank:idx+1,grade,targetTotal,adjustedFinal,adjustedTotal,delta,status,limited,impossibleByRange};
+  });
+
+  state.results=temp;
+  render();
+}
+
+function render(){
+  const results=state.results;
+  const counts={A:0,B:0,C:0,D:0};
+  results.forEach(r=>counts[r.grade]++);
+  $("#kpiN").textContent=results.length;
+  $("#kpiA").textContent=counts.A;
+  $("#kpiB").textContent=counts.B;
+  $("#kpiC").textContent=counts.C;
+  $("#kpiD").textContent=counts.D;
+
+  const headers=["순위","학번","이름",...state.activeCourseCols.map(c=>`${c.header} (${c.weight}%)`),"원기말 (60%)","조정기말","조정폭","원점수","조정총점","등급","상태"];
+  $("#theadRow").innerHTML=headers.map(h=>`<th>${escapeHtml(h)}</th>`).join("");
+
+  $("#tbody").innerHTML=results.map(r=>{
+    const deltaClass=r.delta>0?"plus":r.delta<0?"minus":"";
+    const gradeClass=`grade-${r.grade.toLowerCase()}`;
+    const statusBadge=r.status==="정상"
+      ? `<span class="badge good">정상</span>`
+      : `<span class="badge warn">수동검토</span>`;
+    const cols=[
+      r.rank,
+      escapeHtml(r.sid),
+      `<span class="name">${escapeHtml(r.name)}</span>`,
+      ...state.activeCourseCols.map(c=>fmt(r.scores[c.label])),
+      fmt(r.final),
+      `<b>${fmt(r.adjustedFinal)}</b>`,
+      `<span class="delta ${deltaClass}">${r.delta>0?"+":""}${fmt(r.delta)}</span>`,
+      fmt(r.rawTotal),
+      `<b>${fmt(r.adjustedTotal)}</b>`,
+      `<b class="${gradeClass}">${r.grade}</b>`,
+      statusBadge
+    ];
+    return `<tr>${cols.map(v=>`<td>${v}</td>`).join("")}</tr>`;
+  }).join("");
+
+  const needs=results.filter(r=>r.status!=="정상").length;
+  $("#footInfo").textContent =
+    `원점수 순위 기준으로 A ${counts.A}명 / B ${counts.B}명 / C ${counts.C}명 / D ${counts.D}명을 배정했습니다. `+
+    `기말점수는 각 학생이 목표 등급 점수대에 들어가도록 필요한 최소치만 조정합니다.`+
+    (needs?` 현재 수동검토 ${needs}명입니다.`:"");
+  $("#btnExport").disabled=!results.length;
+  $("#btnRecalc").disabled=!results.length;
+}
+
+function escapeHtml(s){
+  return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+}
+
+function loadParsed(parsed,name){
+  state.weights=parsed.weights;
+  state.students=parsed.students;
+  state.activeCourseCols=parsed.activeCourseCols;
+  state.finalHeader=parsed.finalHeader;
+  state.sourceName=name||"";
+  $("#uploadStatus").textContent =
+    `${name||"데이터"}\n학생 ${state.students.length}명 · `+
+    `과정성적 항목: ${state.activeCourseCols.map(c=>`${c.header} ${c.weight}%`).join(", ")} · 기말 60%`;
+  recalc();
+}
+
+$("#fileInput").addEventListener("change", async (e)=>{
+  const file=e.target.files?.[0];
+  if(!file) return;
+  try{
+    if(typeof XLSX==="undefined") throw new Error("엑셀 처리 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.");
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:"array"});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const parsed=parseSheet(ws);
+    loadParsed(parsed,file.name);
+  }catch(err){
+    alert(err.message||String(err));
+    $("#uploadStatus").textContent="오류: "+(err.message||String(err));
+  }finally{
+    e.target.value="";
+  }
+});
+
+$("#btnRecalc").addEventListener("click",recalc);
+$("#limitToggle").addEventListener("change",()=>state.students.length&&recalc());
+$("#maxDelta").addEventListener("change",()=>state.students.length&&recalc());
+
+$("#btnTemplate").addEventListener("click",()=>{
+  if(typeof XLSX==="undefined"){alert("엑셀 라이브러리를 불러오지 못했습니다.");return;}
+  // 기본 양식에는 평시과제 1~8까지 넣어두지만,
+  // 실제 시스템은 엑셀에 평시과제9, 평시과제10 등이 추가되어도 제한 없이 인식합니다.
+  // 사용하지 않는 과제는 반영비율을 0으로 두면 됩니다.
+  const data=[
+    ["교수 성적 입력 양식"],
+    ["안내","평시과제는 필요한 만큼 열을 추가할 수 있습니다. 반영비율 합계는 출석태도를 포함해 40%, 기말은 60% 고정입니다."],
+    [],
+    ["평가항목","반영비율"],
+    ["출석태도",10],
+    ["평시과제1",10],
+    ["평시과제2",10],
+    ["평시과제3",10],
+    ["평시과제4",0],
+    ["평시과제5",0],
+    ["평시과제6",0],
+    ["평시과제7",0],
+    ["평시과제8",0],
+    ["과정성적 합계",40],
+    ["기말시험",60],
+    ["총합",100],
+    [],
+    ["학번","이름","출석태도","평시과제1","평시과제2","평시과제3","평시과제4","평시과제5","평시과제6","평시과제7","평시과제8","기말"],
+    ["2026001","홍길동","","","","","","","","","",""],
+    ["2026002","김민수","","","","","","","","","",""]
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws["!merges"]=[{s:{r:0,c:0},e:{r:0,c:11}}];
+  ws["!cols"]=[
+    {wch:14},{wch:16},{wch:14},
+    {wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},
+    {wch:12}
+  ];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"성적입력");
+  XLSX.writeFile(wb,"성적입력_양식.xlsx");
+});
+
+$("#btnExport").addEventListener("click",()=>{
+  if(!state.results.length || typeof XLSX==="undefined") return;
+
+  const resultRows=[
+    ["순위","학번","이름",...state.activeCourseCols.map(c=>c.header),
+     "원기말","조정기말","조정폭","과정기여점수(40)","원점수","조정총점","등급","상태"]
+  ];
+  state.results.forEach(r=>{
+    resultRows.push([
+      r.rank,r.sid,r.name,
+      ...state.activeCourseCols.map(c=>r.scores[c.label]),
+      r.final,r.adjustedFinal,r.delta,round2(r.courseContribution),
+      round2(r.rawTotal),r.adjustedTotal,r.grade,r.status
+    ]);
+  });
+
+  const settingRows=[
+    ["평가항목","반영비율"],
+    ...Object.entries(state.weights),
+    [],
+    ["등급","목표비율","점수대"],
+    ["A","10%","90.0~100.0"],
+    ["B","40%","80.0~89.9"],
+    ["C","40%","70.0~79.9"],
+    ["D","10%","60.0~69.9"],
+    [],
+    ["설명","원본 기말점수는 보존하고, 조정기말을 별도 산출함"]
+  ];
+
+  const ws1=XLSX.utils.aoa_to_sheet(resultRows);
+  const ws2=XLSX.utils.aoa_to_sheet(settingRows);
+  ws1["!cols"]=resultRows[0].map((_,i)=>({wch:i===2?16:14}));
+  ws2["!cols"]=[{wch:24},{wch:14},{wch:22}];
+
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws1,"최종성적");
+  XLSX.utils.book_append_sheet(wb,ws2,"설정");
+  XLSX.writeFile(wb,"성적분포_조정결과.xlsx");
+});
+
+$("#btnSample").addEventListener("click",()=>{
+  const weights={
+    "출석태도":8,
+    "평시과제1":8,
+    "평시과제2":6,
+    "평시과제3":6,
+    "평시과제4":5,
+    "평시과제5":7,
+    "과정성적 합계":40,
+    "기말시험":60
+  };
+  const activeCourseCols=[
+    {label:"출석태도",weight:8,col:2,header:"출석태도"},
+    {label:"평시과제1",weight:8,col:3,header:"평시과제1"},
+    {label:"평시과제2",weight:6,col:4,header:"평시과제2"},
+    {label:"평시과제3",weight:6,col:5,header:"평시과제3"},
+    {label:"평시과제4",weight:5,col:6,header:"평시과제4"},
+    {label:"평시과제5",weight:7,col:7,header:"평시과제5"}
+  ];
+  const names=["김서준","이민지","박도윤","최지우","정하윤","윤서아","장민준","임지호","한유진","오수빈","서현우","신예린","권도현","황채원","안지민","송하준","류서윤","홍민재","문가은","배준혁"];
+  const students=names.map((name,i)=>{
+    const base=96-i*1.7;
+    return {
+      sid:String(2026001+i),
+      name,
+      scores:{
+        "출석태도":Math.max(60,Math.min(100,round2(base+((i%3)-1)*2))),
+        "평시과제1":Math.max(55,Math.min(100,round2(base-4+((i%4)-2)*1.5))),
+        "평시과제2":Math.max(50,Math.min(100,round2(base-2+((i%5)-2)*1.2))),
+        "평시과제3":Math.max(50,Math.min(100,round2(base-1+((i%3)-1)*1.6))),
+        "평시과제4":Math.max(50,Math.min(100,round2(base-5+((i%4)-1)*1.4))),
+        "평시과제5":Math.max(50,Math.min(100,round2(base-3+((i%5)-2)*1.1)))
+      },
+      final:Math.max(45,Math.min(100,round2(98-i*2.1+((i%4)-1.5)*1.8)))
+    };
+  });
+  loadParsed({weights,students,activeCourseCols,finalHeader:"기말",finalWeight:60},"샘플 데이터");
+});
+</script>
+</body>
+</html>
