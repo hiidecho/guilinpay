@@ -58,6 +58,31 @@
   .delta.plus{color:#166534;font-weight:800}
   .delta.minus{color:#991b1b;font-weight:800}
   .foot{margin:14px 0 0;color:var(--muted);font-size:12px;line-height:1.6}
+  [hidden]{display:none!important}
+  /* 결과 표 안에서 바로 고치는 칸 */
+  .cell-in{
+    font:inherit;color:inherit;text-align:center;background:transparent;
+    border:1px solid transparent;border-radius:6px;padding:4px 5px;
+  }
+  .cell-in:hover{border-color:var(--line);background:#fff}
+  .cell-in:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px #dbeafe}
+  .cell-in.name-in{text-align:left;font-weight:700}
+  .cell-in.strong{font-weight:800}
+  .cell-in.override{background:#eef2ff;border-color:#c7d2fe;color:#3730a3}
+  .cell-in.edited{background:#fff7ed;border-color:#fdba74;color:inherit}
+  .cell-in.invalid{background:#fef2f2;border-color:var(--bad);color:var(--bad)}
+  .cell-in::placeholder{color:#9ca3af;font-weight:500}
+  select.grade-sel{font-weight:900;cursor:pointer;padding:4px 2px}
+  th .pen{color:#94a3b8;font-weight:600;margin-left:3px}
+  .badge.manual{background:#e0e7ff;color:#3730a3}
+  .kpi .v.off::after{content:" / 목표 " attr(data-target);font-size:12px;font-weight:700;color:var(--warn)}
+  .edit-hint{
+    margin:0 0 10px;padding:9px 12px;border-radius:10px;font-size:13px;line-height:1.5;
+    background:#f8fafc;border:1px solid var(--line);color:#374151;
+  }
+  .edit-hint.pending{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+  .edit-hint.bad{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+  .edit-hint.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
   @media(max-width:900px){
     .grid{grid-template-columns:1fr}
     .summary{grid-template-columns:repeat(2,1fr)}
@@ -116,10 +141,13 @@
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
       <h2 style="margin:0">3. 계산 결과</h2>
       <div class="toolbar">
+        <button id="btnDiscard" class="ghost" hidden>수정 취소</button>
+        <button id="btnClearOv" class="ghost" hidden>수동 수정 해제</button>
         <button id="btnRecalc" class="secondary" disabled>다시 계산</button>
         <button id="btnExport" disabled>결과 엑셀 다운로드</button>
       </div>
     </div>
+    <div class="edit-hint" id="editHint" hidden></div>
     <div class="table-wrap">
       <table>
         <thead><tr id="theadRow"></tr></thead>
@@ -147,6 +175,17 @@ let state = {
   finalHeader:"기말",
   sourceName:""
 };
+
+/* 편집 상태
+   snapshot : 마지막으로 계산한 시점의 학생 데이터 (수정 취소·변경 여부 판단용)
+   dirty    : 아직 계산에 반영되지 않은 칸 ("행번호:필드")
+   touched  : 파일을 불러온 뒤 손으로 고친 적이 있는지 (창 닫기 경고용) */
+let snapshot=[];
+const dirty=new Set();
+let touched=false;
+
+const DEFAULT_HINT="학번·이름·점수·조정기말·등급 칸(✎)을 눌러 바로 고칠 수 있습니다. 고친 뒤 [다시 계산]을 누르면 순위와 등급이 다시 매겨집니다. "+
+  "조정기말이나 등급을 직접 고치면 자동 조정 대신 그 값을 씁니다(수동수정, 파란 칸). Enter는 아래 칸, Esc는 입력 취소입니다.";
 
 const $ = s => document.querySelector(s);
 const round2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -318,7 +357,8 @@ function recalc(){
       courseContribution += s.scores[c.label] * (c.weight/100);
     }
     const rawTotal=courseContribution + s.final * 0.60;
-    return {...s,originalIndex:i,courseContribution,rawTotal};
+    // 결과는 계산 시점의 기록이므로 점수표를 복사해 둔다 (이후 편집과 섞이지 않게)
+    return {...s,scores:{...s.scores},originalIndex:i,courseContribution,rawTotal};
   });
 
   // 원점수, 원기말, 원래 행 순서로 안정 정렬
@@ -326,22 +366,24 @@ function recalc(){
   const counts=distributeCounts(temp.length);
 
   temp=temp.map((s,idx)=>{
-    const grade=gradeByIndex(idx,counts);
+    const autoGrade=gradeByIndex(idx,counts);
+    const grade=s.overrideGrade || autoGrade;
     const band=GRADE_BANDS[grade];
-    let targetTotal=s.rawTotal;
-    if(targetTotal<band.min) targetTotal=band.min;
-    if(targetTotal>band.max) targetTotal=band.max;
+    const targetTotal=Math.min(band.max,Math.max(band.min,s.rawTotal));
 
     let requiredFinal=(targetTotal-s.courseContribution)/0.60;
-    let impossibleByRange=requiredFinal<0 || requiredFinal>100;
+    const impossibleByRange=requiredFinal<0 || requiredFinal>100;
     requiredFinal=Math.min(100,Math.max(0,requiredFinal));
 
-    let desiredDelta=requiredFinal-s.final;
+    const manualFinal=Number.isFinite(s.overrideFinal);
+    const manual=manualFinal || !!s.overrideGrade;
     let adjustedFinal=requiredFinal;
     let limited=false;
 
-    if(limitOn && Math.abs(desiredDelta)>maxDelta){
-      adjustedFinal=s.final + Math.sign(desiredDelta)*maxDelta;
+    if(manualFinal){
+      adjustedFinal=s.overrideFinal;
+    }else if(limitOn && Math.abs(requiredFinal-s.final)>maxDelta){
+      adjustedFinal=s.final + Math.sign(requiredFinal-s.final)*maxDelta;
       adjustedFinal=Math.min(100,Math.max(0,adjustedFinal));
       limited=true;
     }
@@ -349,57 +391,102 @@ function recalc(){
     const adjustedTotal=round2(s.courseContribution + adjustedFinal*0.60);
     const delta=round2(adjustedFinal-s.final);
     const inBand=adjustedTotal >= band.min-0.001 && adjustedTotal <= band.max+0.001;
-    const status = (inBand && !impossibleByRange && !limited) ? "정상" : "수동검토";
+    const autoOk=manualFinal || (!impossibleByRange && !limited);
+    const status=(!inBand || !autoOk) ? "수동검토" : manual ? "수동수정" : "정상";
 
-    return {...s,rank:idx+1,grade,targetTotal,adjustedFinal,adjustedTotal,delta,status,limited,impossibleByRange};
+    return {...s,rank:idx+1,autoGrade,grade,targetTotal,adjustedFinal,adjustedTotal,delta,status,
+            limited,impossibleByRange,manual,manualFinal};
   });
 
   state.results=temp;
+  snapshot=structuredClone(state.students);
+  dirty.clear();
   render();
+}
+
+const numText = v => Number.isFinite(v) ? String(round2(v)) : "";
+
+function cellInput(i, field, value, o={}){
+  const cls=["cell-in", o.cls||"", dirty.has(`${i}:${field}`)?"edited":""].filter(Boolean).join(" ");
+  return `<input class="${cls}" type="text" ${o.text?"":'inputmode="decimal"'} autocomplete="off"
+    data-i="${i}" data-f="${escapeHtml(field)}" ${o.auto!==undefined?`data-auto="${escapeHtml(o.auto)}"`:""}
+    value="${escapeHtml(value)}" ${o.placeholder?`placeholder="${escapeHtml(o.placeholder)}"`:""}
+    style="width:${o.w||62}px" aria-label="${escapeHtml(o.label||field)}">`;
+}
+
+function gradeOptions(grade, manual){
+  return ["A","B","C","D"].map(g=>`<option value="${g}"${g===grade?" selected":""}>${g}</option>`).join("")
+    + (manual ? `<option value="">↺ 자동</option>` : "");
+}
+
+function gradeSelect(i, grade, manual){
+  const cls=["cell-in","grade-sel",`grade-${grade.toLowerCase()}`, manual?"override":"",
+             dirty.has(`${i}:ovGrade`)?"edited":""].filter(Boolean).join(" ");
+  return `<select class="${cls}" data-i="${i}" data-f="ovGrade" aria-label="등급">${gradeOptions(grade,manual)}</select>`;
 }
 
 function render(){
   const results=state.results;
   const counts={A:0,B:0,C:0,D:0};
   results.forEach(r=>counts[r.grade]++);
+  const target=distributeCounts(results.length);
   $("#kpiN").textContent=results.length;
-  $("#kpiA").textContent=counts.A;
-  $("#kpiB").textContent=counts.B;
-  $("#kpiC").textContent=counts.C;
-  $("#kpiD").textContent=counts.D;
+  for(const g of ["A","B","C","D"]){
+    const el=$("#kpi"+g);
+    el.textContent=counts[g];
+    el.dataset.target=target[g];
+    el.classList.toggle("off", results.length>0 && counts[g]!==target[g]);
+  }
 
-  const headers=["순위","학번","이름",...state.activeCourseCols.map(c=>`${c.header} (${c.weight}%)`),"원기말 (60%)","조정기말","조정폭","원점수","조정총점","등급","상태"];
-  $("#theadRow").innerHTML=headers.map(h=>`<th>${escapeHtml(h)}</th>`).join("");
+  const heads=[
+    ["순위",0],["학번",1],["이름",1],
+    ...state.activeCourseCols.map(c=>[`${c.header} (${c.weight}%)`,1]),
+    ["원기말 (60%)",1],["조정기말",1],["조정폭",0],["원점수",0],["조정총점",0],["등급",1],["상태",0]
+  ];
+  $("#theadRow").innerHTML=heads.map(([h,ed])=>
+    `<th>${escapeHtml(h)}${ed?'<span class="pen" aria-hidden="true">✎</span>':""}</th>`).join("");
 
   $("#tbody").innerHTML=results.map(r=>{
+    const i=r.originalIndex;
+    const s=state.students[i];                    // 입력칸은 지금 값(편집 반영)을 보여준다
+    const ovF=Number.isFinite(s.overrideFinal);
+    const ovG=!!s.overrideGrade;
+    const shownGrade=s.overrideGrade || r.autoGrade;
     const deltaClass=r.delta>0?"plus":r.delta<0?"minus":"";
-    const gradeClass=`grade-${r.grade.toLowerCase()}`;
-    const statusBadge=r.status==="정상"
-      ? `<span class="badge good">정상</span>`
-      : `<span class="badge warn">수동검토</span>`;
+    const statusBadge=
+        r.status==="정상"     ? `<span class="badge good">정상</span>`
+      : r.status==="수동수정" ? `<span class="badge manual">수동수정</span>`
+      :                         `<span class="badge warn">수동검토</span>`;
     const cols=[
       r.rank,
-      escapeHtml(r.sid),
-      `<span class="name">${escapeHtml(r.name)}</span>`,
-      ...state.activeCourseCols.map(c=>fmt(r.scores[c.label])),
-      fmt(r.final),
-      `<b>${fmt(r.adjustedFinal)}</b>`,
+      cellInput(i,"sid",s.sid,{text:true,w:84,label:"학번"}),
+      cellInput(i,"name",s.name,{text:true,w:84,cls:"name-in",label:"이름"}),
+      ...state.activeCourseCols.map(c=>cellInput(i,"s:"+c.label,numText(s.scores[c.label]),{label:c.header})),
+      cellInput(i,"final",numText(s.final),{label:"원기말"}),
+      cellInput(i,"ovFinal", ovF ? numText(s.overrideFinal) : numText(r.adjustedFinal), {
+        w:66, cls: ovF?"override strong":"strong", label:"조정기말", placeholder:"자동",
+        auto: r.manualFinal ? "" : numText(r.adjustedFinal)
+      }),
       `<span class="delta ${deltaClass}">${r.delta>0?"+":""}${fmt(r.delta)}</span>`,
       fmt(r.rawTotal),
       `<b>${fmt(r.adjustedTotal)}</b>`,
-      `<b class="${gradeClass}">${r.grade}</b>`,
+      gradeSelect(i, shownGrade, ovG),
       statusBadge
     ];
     return `<tr>${cols.map(v=>`<td>${v}</td>`).join("")}</tr>`;
   }).join("");
 
-  const needs=results.filter(r=>r.status!=="정상").length;
+  const needs=results.filter(r=>r.status==="수동검토").length;
+  const manual=results.filter(r=>r.manual).length;
+  const off=["A","B","C","D"].some(g=>counts[g]!==target[g]);
   $("#footInfo").textContent =
     `원점수 순위 기준으로 A ${counts.A}명 / B ${counts.B}명 / C ${counts.C}명 / D ${counts.D}명을 배정했습니다. `+
     `기말점수는 각 학생이 목표 등급 점수대에 들어가도록 필요한 최소치만 조정합니다.`+
-    (needs?` 현재 수동검토 ${needs}명입니다.`:"");
+    (manual?` 수동수정 ${manual}명.`:"")+
+    (needs?` 현재 수동검토 ${needs}명입니다.`:"")+
+    (off?` ⚠ 등급을 직접 바꿔 목표 분포(A ${target.A} / B ${target.B} / C ${target.C} / D ${target.D})와 다릅니다.`:"");
   $("#btnExport").disabled=!results.length;
-  $("#btnRecalc").disabled=!results.length;
+  syncEditUI();
 }
 
 function escapeHtml(s){
@@ -412,6 +499,8 @@ function loadParsed(parsed,name){
   state.activeCourseCols=parsed.activeCourseCols;
   state.finalHeader=parsed.finalHeader;
   state.sourceName=name||"";
+  touched=false;
+  setHint(DEFAULT_HINT);
   $("#uploadStatus").textContent =
     `${name||"데이터"}\n학생 ${state.students.length}명 · `+
     `과정성적 항목: ${state.activeCourseCols.map(c=>`${c.header} ${c.weight}%`).join(", ")} · 기말 60%`;
@@ -436,7 +525,13 @@ $("#fileInput").addEventListener("change", async (e)=>{
   }
 });
 
-$("#btnRecalc").addEventListener("click",recalc);
+$("#btnRecalc").addEventListener("click",()=>{
+  const bad=$("#tbody").querySelectorAll(".invalid").length;
+  if(bad && !confirm(`잘못 입력된 칸 ${bad}개는 반영되지 않습니다. 그대로 계산할까요?`)) return;
+  const n=dirty.size;
+  recalc();
+  setHint(n ? `수정 ${n}건을 반영해 다시 계산했습니다. 순위와 등급이 새로 매겨졌습니다.` : "다시 계산했습니다.", "ok");
+});
 $("#limitToggle").addEventListener("change",()=>state.students.length&&recalc());
 $("#maxDelta").addEventListener("change",()=>state.students.length&&recalc());
 
@@ -481,17 +576,22 @@ $("#btnTemplate").addEventListener("click",()=>{
 
 $("#btnExport").addEventListener("click",()=>{
   if(!state.results.length || typeof XLSX==="undefined") return;
+  if(dirty.size){
+    if(!confirm(`계산에 반영되지 않은 수정 ${dirty.size}건이 있습니다. 다시 계산한 뒤 내보낼까요?`)) return;
+    recalc();
+  }
 
   const resultRows=[
     ["순위","학번","이름",...state.activeCourseCols.map(c=>c.header),
-     "원기말","조정기말","조정폭","과정기여점수(40)","원점수","조정총점","등급","상태"]
+     "원기말","조정기말","조정폭","과정기여점수(40)","원점수","조정총점","등급","자동등급","상태","수동지정"]
   ];
   state.results.forEach(r=>{
     resultRows.push([
       r.rank,r.sid,r.name,
       ...state.activeCourseCols.map(c=>r.scores[c.label]),
       r.final,r.adjustedFinal,r.delta,round2(r.courseContribution),
-      round2(r.rawTotal),r.adjustedTotal,r.grade,r.status
+      round2(r.rawTotal),r.adjustedTotal,r.grade,r.autoGrade,r.status,
+      [r.manualFinal?"조정기말":"", r.overrideGrade?"등급":""].filter(Boolean).join(", ")
     ]);
   });
 
@@ -505,7 +605,9 @@ $("#btnExport").addEventListener("click",()=>{
     ["C","40%","70.0~79.9"],
     ["D","10%","60.0~69.9"],
     [],
-    ["설명","원본 기말점수는 보존하고, 조정기말을 별도 산출함"]
+    ["설명","원본 기말점수는 보존하고, 조정기말을 별도 산출함"],
+    ["수동수정","교수가 조정기말 또는 등급을 직접 지정한 학생 (수동지정 칼럼 참고)"],
+    ["자동등급","원점수 순위로 자동 배정된 등급. 등급을 직접 바꾼 경우 등급 칼럼과 다름"]
   ];
 
   const ws1=XLSX.utils.aoa_to_sheet(resultRows);
@@ -556,6 +658,151 @@ $("#btnSample").addEventListener("click",()=>{
     };
   });
   loadParsed({weights,students,activeCourseCols,finalHeader:"기말",finalWeight:60},"샘플 데이터");
+});
+
+/* ───────── 결과 표 편집 ───────── */
+function setHint(msg, kind){
+  const el=$("#editHint");
+  el.textContent=msg;
+  el.className="edit-hint"+(kind?" "+kind:"");
+}
+
+function hasOverrides(){
+  return state.students.some(s=>Number.isFinite(s.overrideFinal) || s.overrideGrade);
+}
+
+function syncEditUI(){
+  const n=dirty.size, has=state.results.length>0;
+  const btn=$("#btnRecalc");
+  btn.textContent = n ? `다시 계산 (수정 ${n}건)` : "다시 계산";
+  btn.classList.toggle("secondary", !n);      // 반영할 수정이 있으면 눈에 띄게
+  btn.disabled=!has;
+  $("#btnDiscard").hidden=!n;
+  $("#btnClearOv").hidden=!hasOverrides();
+  $("#editHint").hidden=!has;
+  if(n) setHint(`수정 ${n}건이 아직 계산에 반영되지 않았습니다. 주황색 칸이 고친 곳입니다. [다시 계산]을 눌러주세요.`, "pending");
+}
+
+function getField(s,f){
+  switch(f){
+    case "sid": case "name": return s[f] ?? "";
+    case "final":   return s.final;
+    case "ovFinal": return Number.isFinite(s.overrideFinal) ? s.overrideFinal : null;
+    case "ovGrade": return s.overrideGrade || null;
+    default:        return s.scores[f.slice(2)];
+  }
+}
+function setField(s,f,v){
+  switch(f){
+    case "sid": case "name": s[f]=v; break;
+    case "final":   s.final=v; break;
+    case "ovFinal": s.overrideFinal=v; break;
+    case "ovGrade": s.overrideGrade=v; break;
+    default:        s.scores[f.slice(2)]=v;
+  }
+}
+
+function rejectCell(el,msg){
+  el.classList.add("invalid");
+  setHint(msg+" 빨간 칸은 계산에 반영되지 않습니다.", "bad");
+}
+
+function onCellChange(e){
+  const el=e.target.closest("[data-f]");
+  if(!el) return;
+  const i=Number(el.dataset.i), f=el.dataset.f, s=state.students[i];
+  if(!s) return;
+  const raw=el.value.trim();
+  let v;
+
+  if(f==="sid"){
+    v=raw;
+  }else if(f==="name"){
+    if(!raw) return rejectCell(el,"이름은 비워둘 수 없습니다.");
+    v=raw;
+  }else if(f==="ovGrade"){
+    v=raw || null;
+  }else if(f==="ovFinal" && raw===""){
+    v=null;                                   // 비우면 자동 조정으로 되돌린다
+  }else{
+    v=num(raw);
+    if(!Number.isFinite(v) || v<0 || v>100) return rejectCell(el,"점수는 0~100 사이 숫자로 입력해 주세요.");
+    v=round2(v);
+    // 자동 계산값을 그대로 둔 것은 수동 지정으로 보지 않는다
+    if(f==="ovFinal" && getField(s,f)===null && el.dataset.auto && Math.abs(v-Number(el.dataset.auto))<0.005){
+      el.classList.remove("invalid");
+      el.value=numText(v);
+      return;
+    }
+  }
+
+  el.classList.remove("invalid");
+  if(getField(s,f)===v) return;
+  setField(s,f,v);
+  touched=true;
+
+  const key=`${i}:${f}`;
+  if(getField(snapshot[i],f)===v) dirty.delete(key); else dirty.add(key);
+  el.classList.toggle("edited", dirty.has(key));
+
+  if(f==="ovFinal"){
+    el.classList.toggle("override", v!==null);
+    if(v===null && el.dataset.auto) el.value=el.dataset.auto;
+  }
+  if(f==="ovGrade"){
+    const auto=(state.results.find(r=>r.originalIndex===i)||{}).autoGrade || "C";
+    const g=v || auto;
+    el.innerHTML=gradeOptions(g, !!v);
+    el.value=g;
+    el.className=["cell-in","grade-sel",`grade-${g.toLowerCase()}`, v?"override":"",
+                  dirty.has(key)?"edited":""].filter(Boolean).join(" ");
+  }
+  syncEditUI();
+}
+
+function onCellKey(e){
+  const el=e.target.closest("input[data-f]");
+  if(!el) return;
+  if(e.key==="Enter"){
+    e.preventDefault();
+    const rows=[...$("#tbody").rows];
+    const next=rows[rows.indexOf(el.closest("tr")) + (e.shiftKey?-1:1)];
+    const target=next && next.querySelector(`[data-f="${CSS.escape(el.dataset.f)}"]`);
+    if(target) target.focus(); else el.blur();
+  }else if(e.key==="Escape"){
+    const cur=getField(state.students[Number(el.dataset.i)], el.dataset.f);
+    el.value = cur===null ? (el.dataset.auto || "") : (typeof cur==="number" ? numText(cur) : cur);
+    el.classList.remove("invalid");
+    el.blur();
+  }
+}
+
+$("#tbody").addEventListener("change", onCellChange);
+$("#tbody").addEventListener("keydown", onCellKey);
+$("#tbody").addEventListener("focusin", e=>{ if(e.target.matches("input.cell-in")) e.target.select(); });
+
+$("#btnDiscard").addEventListener("click",()=>{
+  if(!dirty.size) return;
+  const n=dirty.size;
+  state.students=structuredClone(snapshot);
+  dirty.clear();
+  render();
+  setHint(`계산하지 않은 수정 ${n}건을 되돌렸습니다.`, "ok");
+});
+
+$("#btnClearOv").addEventListener("click",()=>{
+  const n=state.students.filter(s=>Number.isFinite(s.overrideFinal) || s.overrideGrade).length;
+  if(!n) return;
+  if(!confirm(`직접 지정한 조정기말·등급 ${n}명분을 모두 해제하고 자동 계산으로 되돌릴까요?`+
+     (dirty.size?`\n아직 계산하지 않은 다른 수정 ${dirty.size}건도 함께 반영됩니다.`:""))) return;
+  state.students.forEach(s=>{ s.overrideFinal=null; s.overrideGrade=null; });
+  recalc();
+  setHint(`수동 수정 ${n}명분을 해제하고 다시 계산했습니다.`, "ok");
+});
+
+// 손으로 고친 내용은 브라우저에만 있으므로 창을 닫기 전에 한 번 묻는다
+window.addEventListener("beforeunload", e=>{
+  if(touched){ e.preventDefault(); e.returnValue=""; }
 });
 </script>
 </body>
